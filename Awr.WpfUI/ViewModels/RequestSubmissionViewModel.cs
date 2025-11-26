@@ -1,14 +1,14 @@
-﻿using System;
+﻿using Awr.Core.DTOs;
+using Awr.Core.Enums;
+using Awr.WpfUI.MvvmCore;
+using Awr.WpfUI.Services.Implementation;
+using Awr.WpfUI.Services.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Awr.Core.DTOs;
-using Awr.Core.Enums;
-using Awr.WpfUI.MvvmCore;
-using Awr.WpfUI.Services.Implementation;
-using Awr.WpfUI.Services.Interfaces;
 
 namespace Awr.WpfUI.ViewModels
 {
@@ -24,6 +24,7 @@ namespace Awr.WpfUI.ViewModels
         private AwrType _selectedType;
         public AwrType SelectedType { get => _selectedType; set => SetProperty(ref _selectedType, value); }
 
+        // Source for Dropdown
         public IEnumerable<AwrType> AwrTypes => Enum.GetValues(typeof(AwrType)).Cast<AwrType>().Where(t => t != AwrType.Others);
 
         private string _materialProduct;
@@ -43,26 +44,36 @@ namespace Awr.WpfUI.ViewModels
 
         // --- State ---
         private bool _isBusy;
-        public bool IsBusy { get => _isBusy; set { SetProperty(ref _isBusy, value); CommandManager.InvalidateRequerySuggested(); } }
+        public bool IsBusy
+        {
+            get => _isBusy;
+            set
+            {
+                SetProperty(ref _isBusy, value);
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
 
         private string _statusMessage;
         public string StatusMessage { get => _statusMessage; set => SetProperty(ref _statusMessage, value); }
 
         public ICommand SubmitCommand { get; }
-        public ICommand ReloadSequenceCommand { get; }
 
-        public RequestSubmissionViewModel() { /* Design-time only */ }
+        // Design-time Constructor
+        public RequestSubmissionViewModel() { }
 
+        // Runtime Constructor
         public RequestSubmissionViewModel(string username)
         {
             _username = username;
-            _service = new WorkflowService(); // Manual DI
+            _service = new WorkflowService(); // Ideally use DI
 
             SelectedType = AwrTypes.FirstOrDefault();
+            StatusMessage = "Initializing...";
 
             SubmitCommand = new RelayCommand(async _ => await SubmitAsync(), _ => !IsBusy);
-            ReloadSequenceCommand = new RelayCommand(_ => LoadNextSequence());
 
+            // Generate ID on load
             LoadNextSequence();
         }
 
@@ -70,15 +81,16 @@ namespace Awr.WpfUI.ViewModels
         {
             try
             {
+                // Synchronous call is fine for simple scalar
                 string seq = _service.GetNextRequestNumberSequenceValue();
                 string datePart = DateTime.Now.ToString("yyyyMMdd");
                 RequestNo = $"AWR-{datePart}-{seq}";
-                StatusMessage = "Ready.";
+                StatusMessage = "Ready for submission.";
             }
             catch (Exception ex)
             {
                 RequestNo = "ERROR";
-                StatusMessage = "Failed to load sequence: " + ex.Message;
+                StatusMessage = "Error: " + ex.Message;
             }
         }
 
@@ -108,16 +120,19 @@ namespace Awr.WpfUI.ViewModels
                     }
                 };
 
+                // Call Service
                 await _service.SubmitNewRequestAsync(dto, _username, RequestNo);
 
-                MessageBox.Show($"Request {RequestNo} submitted successfully.", "Success");
+                MessageBox.Show($"Request {RequestNo} submitted successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Reset Form
                 ClearForm();
-                LoadNextSequence();
+                LoadNextSequence(); // Get NEW ID for next request
             }
             catch (Exception ex)
             {
-                StatusMessage = "Error";
-                MessageBox.Show($"Submission Failed: {ex.Message}", "Error");
+                StatusMessage = "Submission Failed.";
+                MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
@@ -127,8 +142,9 @@ namespace Awr.WpfUI.ViewModels
 
         private bool ValidateForm()
         {
-            if (string.IsNullOrWhiteSpace(MaterialProduct)) { MessageBox.Show("Material/Product is required."); return false; }
+            if (string.IsNullOrWhiteSpace(MaterialProduct)) { MessageBox.Show("Material is required."); return false; }
             if (string.IsNullOrWhiteSpace(BatchNo)) { MessageBox.Show("Batch No is required."); return false; }
+            // AWR No is required in WinForms logic? If so, keep this check.
             if (string.IsNullOrWhiteSpace(AwrNo)) { MessageBox.Show("AWR No is required."); return false; }
             return true;
         }

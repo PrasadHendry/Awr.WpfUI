@@ -12,7 +12,7 @@
         <!-- MAPPINGS: Tell WPF which View to draw for which ViewModel -->
 
         <DataTemplate DataType="{x:Type vm:RequestSubmissionViewModel}">
-            <v:RequestSubmissionView />
+            <v:NewRequestView />
         </DataTemplate>
 
         <DataTemplate DataType="{x:Type vm:IssuanceQueueViewModel}">

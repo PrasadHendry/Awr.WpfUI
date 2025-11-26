@@ -91,6 +91,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Converters\InverseBooleanConverter.cs" />
     <Compile Include="Services\Implementation\AuthenticationService.cs" />
     <Compile Include="Services\Implementation\WorkflowService.cs" />
     <Compile Include="Services\Interfaces\IAuthenticationService.cs" />
@@ -122,8 +123,8 @@
     <Compile Include="Views\ReceiptReturnView.xaml.cs">
       <DependentUpon>ReceiptReturnView.xaml</DependentUpon>
     </Compile>
-    <Compile Include="Views\RequestSubmissionView.xaml.cs">
-      <DependentUpon>RequestSubmissionView.xaml</DependentUpon>
+    <Compile Include="Views\NewRequestView.xaml.cs">
+      <DependentUpon>NewRequestView.xaml</DependentUpon>
     </Compile>
     <Page Include="Views\AuditTrailView.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -140,7 +141,7 @@
     <Page Include="Views\ReceiptReturnView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
-    <Page Include="Views\RequestSubmissionView.xaml">
+    <Page Include="Views\NewRequestView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>

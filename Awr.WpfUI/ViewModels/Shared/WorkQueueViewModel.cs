@@ -18,18 +18,17 @@ namespace Awr.WpfUI.ViewModels.Shared
         protected readonly string Username;
 
         // --- Data ---
-        private ObservableCollection<AwrItemQueueDto> _allItems; // Full list from DB
-        private ObservableCollection<AwrItemQueueDto> _filteredItems; // Display list
+        // Changed to Protected Property for child access
+        protected ObservableCollection<AwrItemQueueDto> AllItems { get; set; }
+
+        private ObservableCollection<AwrItemQueueDto> _filteredItems;
         public ObservableCollection<AwrItemQueueDto> Items { get => _filteredItems; set => SetProperty(ref _filteredItems, value); }
 
         private AwrItemQueueDto _selectedItem;
         public AwrItemQueueDto SelectedItem
         {
             get => _selectedItem;
-            set
-            {
-                if (SetProperty(ref _selectedItem, value)) OnSelectionChanged();
-            }
+            set { if (SetProperty(ref _selectedItem, value)) OnSelectionChanged(); }
         }
 
         // --- State ---
@@ -43,10 +42,7 @@ namespace Awr.WpfUI.ViewModels.Shared
         public string SearchText
         {
             get => _searchText;
-            set
-            {
-                if (SetProperty(ref _searchText, value)) FilterData();
-            }
+            set { if (SetProperty(ref _searchText, value)) FilterData(); }
         }
 
         public ICommand RefreshCommand { get; }
@@ -54,10 +50,11 @@ namespace Awr.WpfUI.ViewModels.Shared
         protected WorkQueueViewModel(string username)
         {
             Username = username;
-            Service = new WorkflowService(); // Manual DI
+            Service = new WorkflowService();
             RefreshCommand = new RelayCommand(async _ => await LoadDataAsync());
             Items = new ObservableCollection<AwrItemQueueDto>();
-            // Auto-load on creation
+            AllItems = new ObservableCollection<AwrItemQueueDto>(); // Initialize
+
             _ = LoadDataAsync();
         }
 
@@ -68,8 +65,8 @@ namespace Awr.WpfUI.ViewModels.Shared
             try
             {
                 var data = await FetchDataInternalAsync();
-                _allItems = new ObservableCollection<AwrItemQueueDto>(data);
-                FilterData(); // Applies search text if any
+                AllItems = new ObservableCollection<AwrItemQueueDto>(data);
+                FilterData();
                 StatusMessage = $"{Items.Count} Records Found.";
             }
             catch (Exception ex)
@@ -83,18 +80,19 @@ namespace Awr.WpfUI.ViewModels.Shared
             }
         }
 
-        private void FilterData()
+        // Changed to Virtual so AuditTrailViewModel can override it
+        protected virtual void FilterData()
         {
-            if (_allItems == null) return;
+            if (AllItems == null) return;
 
             if (string.IsNullOrWhiteSpace(SearchText))
             {
-                Items = new ObservableCollection<AwrItemQueueDto>(_allItems);
+                Items = new ObservableCollection<AwrItemQueueDto>(AllItems);
             }
             else
             {
                 string lower = SearchText.ToLower();
-                var filtered = _allItems.Where(i =>
+                var filtered = AllItems.Where(i =>
                     (i.RequestNo?.ToLower().Contains(lower) ?? false) ||
                     (i.AwrNo?.ToLower().Contains(lower) ?? false) ||
                     (i.MaterialProduct?.ToLower().Contains(lower) ?? false) ||
@@ -104,10 +102,8 @@ namespace Awr.WpfUI.ViewModels.Shared
             }
         }
 
-        // Abstract method: Each Child VM must define HOW it gets data (e.g., GetIssuanceQueue vs GetReceiptQueue)
         protected abstract Task<List<AwrItemQueueDto>> FetchDataInternalAsync();
 
-        // Virtual method: Optional override for when grid selection changes
         protected virtual void OnSelectionChanged() { }
     }
 }

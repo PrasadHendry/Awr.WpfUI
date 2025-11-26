@@ -25,28 +25,36 @@
                     <TextBlock Text="{Binding LoggedInUser, StringFormat='Logged in as: {0}'}" 
                                Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
                     <Button Content="Sign Out" Command="{Binding SignOutCommand}" 
-                            Background="#DC3545" Foreground="White" Padding="15,5" BorderThickness="0" FontWeight="Bold"/>
+                            Background="#DC3545" Foreground="White" Padding="15,5" BorderThickness="0" FontWeight="Bold">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="4"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main Tabs -->
-        <TabControl Grid.Row="1" 
-            ItemsSource="{Binding Tabs}" 
-            SelectedItem="{Binding SelectedTab}" 
-            Margin="10" 
-            Background="White" 
-            BorderThickness="0">
-            <TabControl.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding Header}" FontSize="14" FontWeight="Bold" Margin="10,5"/>
-                </DataTemplate>
-            </TabControl.ItemTemplate>
-            <TabControl.ContentTemplate>
-                <DataTemplate>
-                    <ContentControl Content="{Binding Content}" Margin="10"/>
-                </DataTemplate>
-            </TabControl.ContentTemplate>
+        <!-- TABS: THE FIX -->
+        <!-- We bind ItemsSource, then use ItemContainerStyle to map Header and Content directly. -->
+        <TabControl Grid.Row="1" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" 
+                    Margin="10" Background="White" BorderThickness="0">
+
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem">
+                    <!-- Bind the Tab Header text -->
+                    <Setter Property="Header" Value="{Binding Header}"/>
+                    <!-- Bind the Tab Content (ViewModel) - App.xaml DataTemplates will render the View -->
+                    <Setter Property="Content" Value="{Binding Content}"/>
+
+                    <!-- Styling for the Tab Header -->
+                    <Setter Property="FontSize" Value="14"/>
+                    <Setter Property="FontWeight" Value="Bold"/>
+                    <Setter Property="Padding" Value="10,5"/>
+                </Style>
+            </TabControl.ItemContainerStyle>
+
         </TabControl>
 
         <!-- Footer -->

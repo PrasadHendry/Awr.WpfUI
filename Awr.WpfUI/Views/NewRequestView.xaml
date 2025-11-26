@@ -1,4 +1,4 @@
-<UserControl x:Class="Awr.WpfUI.Views.ReceiptReturnView"
+<UserControl x:Class="Awr.WpfUI.Views.NewRequestView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
