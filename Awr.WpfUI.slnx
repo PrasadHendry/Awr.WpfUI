@@ -1,0 +1,22 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Backend/">
+    <Project Path="Backend/Awr.Core/Awr.Core.WPF.csproj" Id="56251268-02ae-4c43-afc1-107dc36d982c">
+      <Platform Solution="*|x86" Project="x86" />
+    </Project>
+    <Project Path="Backend/Awr.Data/Awr.Data.WPF.csproj" Id="4a23af4b-e190-4e0f-976e-f203ebc37fee">
+      <Platform Solution="*|x86" Project="x86" />
+    </Project>
+    <Project Path="Backend/Awr.Worker/Awr.Worker.WPF.csproj" Id="9a33ea0b-46bb-4618-83f7-e87c2090bfcf">
+      <Platform Solution="*|x86" Project="x86" />
+      <Platform Solution="Debug|Any CPU" Project="x86" />
+    </Project>
+  </Folder>
+  <Project Path="Awr.WpfUI/Awr.WpfUI.csproj" Id="f2ce177e-eb9f-4180-a28b-b61462326d5e">
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="Debug|Any CPU" Project="x86" />
+  </Project>
+</Solution>

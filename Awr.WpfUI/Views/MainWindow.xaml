@@ -1,0 +1,60 @@
+<Window x:Class="Awr.WpfUI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Awr.WpfUI.ViewModels"
+        mc:Ignorable="d"
+        Title="AWR Issuance System" Height="768" Width="1024"
+        WindowState="Maximized" WindowStartupLocation="CenterScreen"
+        Background="#F0F2F5">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="60"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Background="#41546E" Padding="20,0">
+            <Grid>
+                <TextBlock Text="AWR Issuance System" FontSize="20" FontWeight="Bold" Foreground="White" 
+                           VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding LoggedInUser, StringFormat='Logged in as: {0}'}" 
+                               Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                    <Button Content="Sign Out" Command="{Binding SignOutCommand}" 
+                            Background="#DC3545" Foreground="White" Padding="15,5" BorderThickness="0" FontWeight="Bold"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Tabs -->
+        <TabControl Grid.Row="1" 
+            ItemsSource="{Binding Tabs}" 
+            SelectedItem="{Binding SelectedTab}" 
+            Margin="10" 
+            Background="White" 
+            BorderThickness="0">
+            <TabControl.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Header}" FontSize="14" FontWeight="Bold" Margin="10,5"/>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
+            <TabControl.ContentTemplate>
+                <DataTemplate>
+                    <ContentControl Content="{Binding Content}" Margin="10"/>
+                </DataTemplate>
+            </TabControl.ContentTemplate>
+        </TabControl>
+
+        <!-- Footer -->
+        <StatusBar Grid.Row="2" Background="#E9ECEF">
+            <StatusBarItem Content="{Binding LoggedInUser}" HorizontalAlignment="Left"/>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding FooterTime}"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>
