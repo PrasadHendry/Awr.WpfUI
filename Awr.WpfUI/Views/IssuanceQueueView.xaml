@@ -3,98 +3,173 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:vm="clr-namespace:Awr.WpfUI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="900" Background="White">
+             d:DesignHeight="700" d:DesignWidth="1200" Background="#F0F2F5">
 
     <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- TEXT WRAPPING STYLE -->
+        <Style x:Key="WrappedColumnStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="2,5"/>
+        </Style>
+
+        <!-- OTHER STYLES (Same as before) -->
+        <Style TargetType="TextBlock" x:Key="DetailLabelStyle">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Foreground" Value="#888"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="TextBox" x:Key="DetailInputStyle">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="Background" Value="#F9F9F9"/>
+            <Setter Property="Foreground" Value="#333"/>
+            <Setter Property="BorderBrush" Value="#DDD"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#41546E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="BorderBrush" Value="#667D97"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
     </UserControl.Resources>
 
-    <Grid Margin="10">
+    <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Header + Search -->
             <RowDefinition Height="*"/>
-            <!-- DataGrid -->
+            <!-- Grid stretches here -->
             <RowDefinition Height="Auto"/>
-            <!-- Details / Actions -->
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- 1. HEADER (Unchanged) -->
         <Grid Margin="0,0,0,10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="Pending Approval Queue" FontSize="18" FontWeight="Bold" Foreground="#333" VerticalAlignment="Center"/>
-
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <TextBox Width="200" Height="30" Margin="0,0,10,0" Padding="5" VerticalContentAlignment="Center" 
-                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
-                         ToolTip="Search by Request No, Batch, Product..."/>
-                <Button Content="Refresh" Command="{Binding RefreshCommand}" Padding="15,5"/>
-            </StackPanel>
+            <TextBlock Text="Pending Issuance" FontSize="16" FontWeight="Bold" Foreground="#333" VerticalAlignment="Bottom"/>
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" Background="#007BFF" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="100" Height="30" HorizontalAlignment="Right">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="4"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
         </Grid>
 
-        <!-- Data Grid -->
+        <!-- 2. MASTER GRID (FIXED LAYOUT) -->
         <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
-                  AutoGenerateColumns="False" IsReadOnly="True" 
-                  SelectionMode="Single" GridLinesVisibility="Horizontal"
-                  BorderBrush="#DDD" BorderThickness="1">
+                  AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                  HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                  ScrollViewer.HorizontalScrollBarVisibility="Visible" 
+                  ScrollViewer.VerticalScrollBarVisibility="Visible"
+                  BorderBrush="#CCC" BorderThickness="1" Background="White" 
+                  RowHeight="40" FrozenColumnCount="2">
+            <!-- Frozen + Taller Rows -->
+
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Request No" Binding="{Binding RequestNo}" Width="140" FontWeight="SemiBold"/>
-                <DataGridTextColumn Header="AWR No" Binding="{Binding AwrNo}" Width="140"/>
-                <DataGridTextColumn Header="Product" Binding="{Binding MaterialProduct}" Width="*"/>
-                <DataGridTextColumn Header="Batch" Binding="{Binding BatchNo}" Width="100"/>
-                <DataGridTextColumn Header="Requested By" Binding="{Binding RequestedBy}" Width="120"/>
-                <DataGridTextColumn Header="Date" Binding="{Binding RequestedAt, StringFormat=dd-MM-yyyy}" Width="100"/>
+                <!-- Frozen -->
+                <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="160" FontWeight="Bold" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="160" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+
+                <!-- Scrollable -->
+                <DataGridTextColumn Header="Prepared By (QC)" Binding="{Binding RequestedBy}" Width="200" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                <!-- Note: Date column needs special ElementStyle for formatting + wrapping -->
+                <DataGridTemplateColumn Header="Date" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding RequestedAt, StringFormat=dd-MM-yyyy HH:mm}" TextWrapping="Wrap" Padding="2,5" VerticalAlignment="Center"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
-        <!-- Details / Actions Panel -->
-        <Border Grid.Row="2" Margin="0,15,0,0" Padding="15" Background="#F8F9FA" BorderBrush="#E9ECEF" BorderThickness="1" CornerRadius="4">
-            <Grid>
+        <!-- 3. DETAILS PANEL (Unchanged) -->
+        <GroupBox Grid.Row="2" Header="Details" Margin="0,15,0,0" FontSize="13" FontWeight="Bold" Foreground="#666" BorderBrush="#DDD" Background="White">
+            <Grid Margin="15,15,15,5">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <!-- Details -->
-                    <ColumnDefinition Width="3*"/>
-                    <!-- Reject Comment -->
-                    <ColumnDefinition Width="Auto"/>
-                    <!-- Buttons -->
+                    <ColumnDefinition Width="135"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="135"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Request No:" Grid.Row="0" Grid.Column="0" Style="{StaticResource DetailLabelStyle}"/>
+                <TextBox Text="{Binding SelectedItem.RequestNo}" Grid.Row="0" Grid.Column="1" Style="{StaticResource DetailInputStyle}"/>
+                <TextBlock Text="Requested By:" Grid.Row="0" Grid.Column="2" Style="{StaticResource DetailLabelStyle}"/>
+                <TextBox Text="{Binding SelectedItem.RequestedBy}" Grid.Row="0" Grid.Column="3" Style="{StaticResource DetailInputStyle}"/>
+                <TextBlock Text="Material/Product:" Grid.Row="1" Grid.Column="0" Style="{StaticResource DetailLabelStyle}"/>
+                <TextBox Text="{Binding SelectedItem.MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource DetailInputStyle}"/>
+                <TextBlock Text="Batch No:" Grid.Row="1" Grid.Column="2" Style="{StaticResource DetailLabelStyle}"/>
+                <TextBox Text="{Binding SelectedItem.BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource DetailInputStyle}"/>
+                <TextBlock Text="AWR Type:" Grid.Row="2" Grid.Column="0" Style="{StaticResource DetailLabelStyle}"/>
+                <TextBox Text="{Binding SelectedItem.AwrType}" Grid.Row="2" Grid.Column="1" Style="{StaticResource DetailInputStyle}"/>
+                <TextBlock Text="AR No:" Grid.Row="2" Grid.Column="2" Style="{StaticResource DetailLabelStyle}"/>
+                <TextBox Text="{Binding SelectedItem.ArNo}" Grid.Row="2" Grid.Column="3" Style="{StaticResource DetailInputStyle}"/>
+                <TextBlock Text="Requester Comment:" Grid.Row="3" Grid.Column="0" Style="{StaticResource DetailLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0"/>
+                <TextBox Text="{Binding SelectedItem.RequestComment}" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Height="60" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#F9F9F9" Foreground="#555" Padding="5" BorderBrush="#DDD" Margin="0,0,0,10"/>
+            </Grid>
+        </GroupBox>
 
-                <!-- 1. Selection Details -->
-                <StackPanel>
-                    <TextBlock Text="Selected Request Details" FontWeight="Bold" Margin="0,0,0,5"/>
-                    <TextBlock Text="{Binding SelectedItem.RequestComment, StringFormat='Comment: {0}', TargetNullValue='(No Comment)'}" 
-                               Foreground="#555" TextWrapping="Wrap" Margin="0,0,10,0"/>
-                </StackPanel>
-
-                <!-- 2. Rejection Input -->
-                <StackPanel Grid.Column="1" Margin="10,0">
-                    <TextBlock Text="Rejection Reason (Required for Reject)" FontSize="12" Foreground="#666" Margin="0,0,0,3"/>
-                    <TextBox Text="{Binding RejectComment, UpdateSourceTrigger=PropertyChanged}" 
-                             Height="50" TextWrapping="Wrap" AcceptsReturn="True" Padding="5"/>
-                </StackPanel>
-
-                <!-- 3. Actions -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Orientation="Horizontal">
-                    <ProgressBar Width="80" Height="15" IsIndeterminate="True" Margin="0,0,10,0" 
-                                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
-
-                    <Button Content="Reject" Command="{Binding RejectCommand}" 
-                            Background="#DC3545" Foreground="White" FontWeight="Bold" 
-                            Height="35" Width="100" Margin="0,0,10,0" BorderThickness="0">
+        <!-- 4. ACTIONS PANEL (Unchanged) -->
+        <GroupBox Grid.Row="3" Header="Actions" Margin="0,15,0,0" FontSize="13" FontWeight="Bold" Foreground="#666" BorderBrush="#DDD" Background="White">
+            <Grid Margin="15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="200"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="Rejection Reason (Required for Reject):" FontSize="12" Foreground="#888" Margin="0,0,0,5"/>
+                <TextBox Grid.Row="1" Text="{Binding RejectComment, UpdateSourceTrigger=PropertyChanged}" Height="65" TextWrapping="Wrap" AcceptsReturn="True" Padding="5" BorderBrush="#CCC"/>
+                <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Bottom">
+                    <Button Content="Approve (Generate)" Command="{Binding ApproveCommand}" Height="35" Margin="0,0,0,10" BorderThickness="0" FontWeight="Bold" Foreground="White">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#28A745"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#AAA"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="4"/>
                             </Style>
                         </Button.Resources>
                     </Button>
-
-                    <Button Content="Approve (Generate)" Command="{Binding ApproveCommand}" 
-                            Background="#28A745" Foreground="White" FontWeight="Bold" 
-                            Height="35" Width="140" BorderThickness="0">
+                    <Button Content="Reject" Command="{Binding RejectCommand}" Height="35" BorderThickness="0" FontWeight="Bold" Foreground="White">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#DC3545"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#AAA"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
                         <Button.Resources>
                             <Style TargetType="Border">
                                 <Setter Property="CornerRadius" Value="4"/>
@@ -103,6 +178,6 @@
                     </Button>
                 </StackPanel>
             </Grid>
-        </Border>
+        </GroupBox>
     </Grid>
 </UserControl>
