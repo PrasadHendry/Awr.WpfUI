@@ -28,12 +28,10 @@
                        HorizontalAlignment="Center"/>
         </Border>
 
-        <!-- Login Card -->
+        <!-- Login Card (Optimized: No DropShadowEffect) -->
         <Border Grid.Row="1" Width="450" VerticalAlignment="Center" 
-                Background="White" CornerRadius="8" Padding="40,30,40,20">
-            <Border.Effect>
-                <DropShadowEffect BlurRadius="15" ShadowDepth="4" Opacity="0.15"/>
-            </Border.Effect>
+                Background="White" CornerRadius="8" Padding="40,30,40,20"
+                BorderBrush="#CCC" BorderThickness="1">
 
             <StackPanel>
                 <TextBlock Text="Welcome Back" FontSize="20" FontWeight="SemiBold" Foreground="#333" 
@@ -64,14 +62,11 @@
                     </Button.Resources>
                 </Button>
 
-                <!-- Error & Spinner Container (Fixed Height Area to prevent jumping/hiding) -->
+                <!-- Error & Spinner Container -->
                 <Grid Margin="0,15,0,0" Height="40">
-                    <!-- Error Message -->
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC3545" 
                                TextWrapping="Wrap" TextAlignment="Center" 
                                VerticalAlignment="Top" FontWeight="SemiBold"/>
-
-                    <!-- Spinner (Overlays text or appears when busy) -->
                     <ProgressBar IsIndeterminate="True" Height="4" VerticalAlignment="Bottom"
                                  Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
                 </Grid>

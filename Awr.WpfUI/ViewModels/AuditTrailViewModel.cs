@@ -43,8 +43,15 @@ namespace Awr.WpfUI.ViewModels
             AwrTypes = new List<string> { "--- All Types ---" };
             AwrTypes.AddRange(Enum.GetNames(typeof(AwrType)));
 
+            // FIX: Exclude Draft and Complete from the UI Dropdown
             Statuses = new List<string> { "--- All Statuses ---" };
-            Statuses.AddRange(Enum.GetNames(typeof(AwrItemStatus)));
+            foreach (var statusName in Enum.GetNames(typeof(AwrItemStatus)))
+            {
+                if (statusName != "Draft" && statusName != "Complete")
+                {
+                    Statuses.Add(statusName);
+                }
+            }
 
             // Defaults
             _selectedType = AwrTypes[0];
@@ -54,18 +61,17 @@ namespace Awr.WpfUI.ViewModels
         // Fetch ALL data from DB once, then filter in memory for speed
         protected override async Task<List<AwrItemQueueDto>> FetchDataInternalAsync()
         {
-            // Always fetch all items initially so client-side filtering works smoothly
             return await Service.GetAllAuditItemsAsync();
         }
 
         // Override the Base FilterData to include specific dropdown logic
         protected override void FilterData()
         {
-            if (AllItems == null) return; // 'AllItems' is protected in Base
+            if (AllItems == null) return;
 
             var query = AllItems.AsEnumerable();
 
-            // 1. Text Search (Base Logic + Extra)
+            // 1. Text Search
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
                 string lower = SearchText.ToLower();
@@ -89,18 +95,13 @@ namespace Awr.WpfUI.ViewModels
                 query = query.Where(i => i.Status.ToString() == SelectedStatus);
             }
 
-            // 4. "My Requests Only" (Inverse of Show All)
+            // 4. "My Requests Only"
             if (!ShowAll)
             {
-                // Filter by RequestedBy == LoggedInUser
                 query = query.Where(i => string.Equals(i.RequestedBy, Username, StringComparison.OrdinalIgnoreCase));
             }
 
-            // Update the Display Collection
             Items = new ObservableCollection<AwrItemQueueDto>(query);
-
-            // Update Status Message (Count)
-            // Note: In View, bind "Total Records: {Binding Items.Count}"
         }
     }
 }

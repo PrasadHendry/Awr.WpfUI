@@ -9,8 +9,37 @@
 
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-        <!-- MAPPINGS: Tell WPF which View to draw for which ViewModel -->
+        <!-- OPTIMIZED GLOBAL DATAGRID STYLE -->
+        <Style TargetType="DataGrid">
+            <!-- 1. Enable Virtualization (Critical for speed) -->
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
 
+            <!-- 2. Reuse row containers (Saves memory) -->
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+
+            <!-- 3. Deferred Scrolling (Smoother scrolling on old CPUs) -->
+            <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True"/>
+
+            <!-- 4. Render Speed Optimizations -->
+            <Setter Property="RenderOptions.ClearTypeHint" Value="Enabled"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+
+            <!-- 5. Default Visuals (Applies to all grids) -->
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#DDD"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#DDD"/>
+            <Setter Property="BorderBrush" Value="#CCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="RowHeight" Value="35"/>
+        </Style>
+
+        <!-- VIEW MAPPINGS -->
         <DataTemplate DataType="{x:Type vm:RequestSubmissionViewModel}">
             <v:NewRequestView />
         </DataTemplate>
@@ -27,7 +56,6 @@
             <v:AuditTrailView />
         </DataTemplate>
 
-        <!-- Placeholder Template so it doesn't show text for unfinished tabs -->
         <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
             <Grid Background="#EEE">
                 <TextBlock Text="Coming Soon..." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#999" FontSize="20"/>

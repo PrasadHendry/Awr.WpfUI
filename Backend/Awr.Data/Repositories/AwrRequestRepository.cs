@@ -48,8 +48,6 @@ namespace Awr.Data.Repositories
         }
 
         // --- QUEUE RETRIEVAL & AUDIT ---
-        // NOTE: Using ISNULL logic in C# DTO mapping usually, but we can do it in SQL if preferred.
-        // For "NA", it's better handled in the UI formatting or a view model wrapper, but I will leave raw data here.
         private static readonly string ItemQueueSelectSql = @"
             SELECT 
                 i.Id AS ItemId, 
@@ -62,7 +60,11 @@ namespace Awr.Data.Repositories
                     WHEN i.Status = 'InUse' THEN " + (int)AwrItemStatus.Received + @"
                     WHEN i.Status = 'PendingIssuance' THEN " + (int)AwrItemStatus.PendingIssuance + @"
                     WHEN i.Status = 'Issued' THEN " + (int)AwrItemStatus.Issued + @"
-                    WHEN i.Status = 'Returned' THEN " + (int)AwrItemStatus.PendingRetrieval + @"
+                    
+                    -- FIX: Map BOTH 'Returned' (Legacy) and 'Voided' (New) to Enum 4
+                    WHEN i.Status = 'Returned' THEN " + (int)AwrItemStatus.Voided + @"
+                    WHEN i.Status = 'Voided' THEN " + (int)AwrItemStatus.Voided + @"
+                    
                     WHEN i.Status = 'Complete' THEN " + (int)AwrItemStatus.Complete + @"
                     WHEN i.Status = 'RejectedByQa' THEN " + (int)AwrItemStatus.RejectedByQa + @"
                     ELSE 0 
@@ -104,7 +106,8 @@ namespace Awr.Data.Repositories
 
         public List<AwrItemQueueDto> GetItemsForReturnQueue(string requesterUsername)
         {
-            string sql = ItemQueueSelectSql + @"WHERE i.Status = 'InUse' AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt, i.Id;";
+            // Logic for legacy 'Return' queue if needed, now conceptually the Void history
+            string sql = ItemQueueSelectSql + @"WHERE (i.Status = 'InUse' OR i.Status = 'Voided' OR i.Status = 'Returned') AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt, i.Id;";
             using (var connection = GetConnection()) return connection.Query<AwrItemQueueDto>(sql, new { Username = requesterUsername }).ToList();
         }
 
@@ -134,13 +137,44 @@ namespace Awr.Data.Repositories
             }
         }
 
-        // FIX: Added 'remark' parameter and updated SQL to save it
         public void ReturnItem(int itemId, string requesterUsername, string remark)
         {
-            const string sql = @"UPDATE dbo.AwrRequestItem SET ReturnedByUsername = @Username, ReturnedAt = GETDATE(), Remark = @Remark, Status = 'Returned' WHERE Id = @ItemId AND Status = 'Issued';";
             using (var connection = GetConnection())
             {
-                if (connection.Execute(sql, new { ItemId = itemId, Username = requesterUsername, Remark = remark }) == 0) throw new InvalidOperationException("Void failed.");
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Update ITEM Status to 'Voided'
+                        const string itemSql = @"
+                            UPDATE dbo.AwrRequestItem 
+                            SET ReturnedByUsername = @Username, 
+                                ReturnedAt = GETDATE(), 
+                                Remark = @Remark, 
+                                Status = 'Voided' 
+                            OUTPUT INSERTED.AwrRequestId 
+                            WHERE Id = @ItemId AND Status = 'Issued';";
+
+                        int? headerId = connection.ExecuteScalar<int?>(itemSql,
+                            new { ItemId = itemId, Username = requesterUsername, Remark = remark },
+                            transaction: transaction);
+
+                        if (headerId == null)
+                            throw new InvalidOperationException("Void failed. Item not found or not in 'Issued' state.");
+
+                        // 2. Update HEADER Status to 'Voided'
+                        const string headerSql = @"UPDATE dbo.AwrRequest SET CurrentStatus = 'Voided' WHERE Id = @HeaderId;";
+                        connection.Execute(headerSql, new { HeaderId = headerId }, transaction: transaction);
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
             }
         }
 

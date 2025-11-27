@@ -15,7 +15,6 @@ namespace Awr.WpfUI.Services.Implementation
     {
         private readonly string _connectionString;
 
-        // Hardcoded credentials from legacy system requirement
         private static readonly Dictionary<string, string> AbsoluteCredentials = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             { "Requester", "test1" },
@@ -32,7 +31,18 @@ namespace Awr.WpfUI.Services.Implementation
         {
             return await Task.Run(() =>
             {
-                const string sql = "SELECT RoleID, RoleName FROM dbo.User_Roles ORDER BY RoleName;";
+                // FIX: Custom Sort Order (Requester -> QA -> Admin)
+                const string sql = @"
+                    SELECT RoleID, RoleName 
+                    FROM dbo.User_Roles 
+                    ORDER BY 
+                        CASE RoleName 
+                            WHEN 'Requester' THEN 1 
+                            WHEN 'QA' THEN 2 
+                            WHEN 'Admin' THEN 3 
+                            ELSE 4 
+                        END;";
+
                 using (IDbConnection connection = new SqlConnection(_connectionString))
                 {
                     return connection.Query<UserRoleDto>(sql).ToList();
@@ -46,14 +56,12 @@ namespace Awr.WpfUI.Services.Implementation
             {
                 string roleName = username.Trim();
 
-                // 1. Check Hardcoded Password
                 if (!AbsoluteCredentials.TryGetValue(roleName, out string expectedHash))
                     return (false, string.Empty);
 
                 if (password != expectedHash)
                     return (false, string.Empty);
 
-                // 2. Check Database Existence
                 const string sql = @"
                     SELECT RoleName 
                     FROM dbo.User_Roles 

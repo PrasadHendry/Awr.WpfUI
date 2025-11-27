@@ -61,7 +61,9 @@ namespace Awr.WpfUI.ViewModels
                 Roles.Clear();
                 foreach (var r in roles) Roles.Add(r);
 
+                // This line ensures 'Requester' is selected because it is now #1 in the list
                 if (Roles.Count > 0) SelectedRole = Roles[0];
+
                 ErrorMessage = string.Empty;
             }
             catch (Exception ex)
