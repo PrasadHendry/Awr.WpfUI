@@ -132,7 +132,7 @@ namespace Awr.WpfUI.ViewModels
             if (string.IsNullOrWhiteSpace(ArNo)) { IsArError = true; isValid = false; }
             if (string.IsNullOrWhiteSpace(Comments)) { IsCommentError = true; isValid = false; }
 
-            if (!isValid) MessageBox.Show("Please fill in the required highlighted fields.", "Validation");
+            if (!isValid) MessageBox.Show("Please fill in the required highlighted fields.", "Validation", MessageBoxButton.OK, MessageBoxImage.Information);
             return isValid;
         }
 

@@ -45,11 +45,16 @@ namespace Awr.WpfUI.ViewModels
         {
             if (SelectedItem == null) return;
             IsVoidError = false;
-            if (string.IsNullOrWhiteSpace(VoidReason)) { IsVoidError = true; MessageBox.Show("Enter Void Reason.", "Validation"); return; }
-            if (MessageBox.Show($"Void Request {SelectedItem.RequestNo}?", "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.No) return;
+            if (string.IsNullOrWhiteSpace(VoidReason))
+            {
+                IsVoidError = true;
+                MessageBox.Show("Enter Void Reason.", "Validation", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (MessageBox.Show($"Void Request {SelectedItem.RequestNo}?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No) return;
             IsBusy = true;
             try { await Service.VoidItemAsync(SelectedItem.ItemId, Username, VoidReason); MessageBox.Show("Voided.", "Success"); await LoadDataAsync(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Error"); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Exclamation); }
             finally { IsBusy = false; }
         }
     }
