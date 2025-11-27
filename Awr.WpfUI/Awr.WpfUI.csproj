@@ -102,7 +102,7 @@
     <Compile Include="ViewModels\LoginViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="ViewModels\ReceiptReturnViewModel.cs" />
-    <Compile Include="ViewModels\RequestSubmissionViewModel.cs" />
+    <Compile Include="ViewModels\NewRequestViewModel.cs" />
     <Compile Include="ViewModels\Shared\WorkQueueViewModel.cs" />
     <Compile Include="Views\AuditTrailView.xaml.cs">
       <DependentUpon>AuditTrailView.xaml</DependentUpon>

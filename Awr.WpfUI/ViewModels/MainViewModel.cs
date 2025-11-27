@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.ObjectModel;
-using System.Linq; // Added for FirstOrDefault
 using System.Windows.Input;
 using Awr.WpfUI.MvvmCore;
 
@@ -16,14 +15,8 @@ namespace Awr.WpfUI.ViewModels
 
         public ObservableCollection<TabItemViewModel> Tabs { get; set; } = new ObservableCollection<TabItemViewModel>();
 
-        // --- NEW: Track the Selected Tab ---
         private TabItemViewModel _selectedTab;
-        public TabItemViewModel SelectedTab
-        {
-            get => _selectedTab;
-            set => SetProperty(ref _selectedTab, value);
-        }
-        // -----------------------------------
+        public TabItemViewModel SelectedTab { get => _selectedTab; set => SetProperty(ref _selectedTab, value); }
 
         public ICommand SignOutCommand { get; }
         private readonly string _pcUsername;
@@ -50,7 +43,8 @@ namespace Awr.WpfUI.ViewModels
             switch (role)
             {
                 case "Requester":
-                    Tabs.Add(new TabItemViewModel("New Request", new RequestSubmissionViewModel(_pcUsername)));
+                    // UPDATE: Use NewRequestViewModel
+                    Tabs.Add(new TabItemViewModel("New Request", new NewRequestViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Receipt & Print", new ReceiptReturnViewModel(_pcUsername)));
                     break;
 
@@ -59,18 +53,15 @@ namespace Awr.WpfUI.ViewModels
                     break;
 
                 case "Admin":
-                    Tabs.Add(new TabItemViewModel("New Request", new RequestSubmissionViewModel(_pcUsername)));
+                    // UPDATE: Use NewRequestViewModel
+                    Tabs.Add(new TabItemViewModel("New Request", new NewRequestViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Approval Queue", new IssuanceQueueViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Receipt & Print", new ReceiptReturnViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Users", new PlaceholderViewModel()));
                     break;
             }
 
-            // --- FIX: Explicitly select the first tab ---
-            if (Tabs.Count > 0)
-            {
-                SelectedTab = Tabs[0];
-            }
+            if (Tabs.Count > 0) SelectedTab = Tabs[0];
         }
 
         private void OnSignOut()
@@ -84,12 +75,7 @@ namespace Awr.WpfUI.ViewModels
     {
         public string Header { get; }
         public BaseViewModel Content { get; }
-
-        public TabItemViewModel(string header, BaseViewModel content)
-        {
-            Header = header;
-            Content = content;
-        }
+        public TabItemViewModel(string header, BaseViewModel content) { Header = header; Content = content; }
     }
 
     public class PlaceholderViewModel : BaseViewModel { }

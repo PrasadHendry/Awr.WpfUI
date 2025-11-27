@@ -10,7 +10,6 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
 
-        <!-- FORM STYLES -->
         <Style TargetType="TextBlock" x:Key="FormLabelStyle">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -18,15 +17,6 @@
             <Setter Property="Foreground" Value="#333"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
-
-        <Style TargetType="TextBox" x:Key="FormInputStyle">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="5,0"/>
-            <Setter Property="Margin" Value="0,0,20,0"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
-
         <Style TargetType="ComboBox" x:Key="FormComboStyle">
             <Setter Property="Height" Value="30"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -34,96 +24,82 @@
             <Setter Property="Margin" Value="0,0,20,0"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
+
+        <!-- Validation Style using DataTrigger -->
+        <Style TargetType="TextBox" x:Key="FormInputStyle">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5,0"/>
+            <Setter Property="Margin" Value="0,0,20,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderBrush" Value="#CCC"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
+                    <Setter Property="BorderBrush" Value="Red"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Title -->
             <RowDefinition Height="Auto"/>
-            <!-- Request Details -->
             <RowDefinition Height="*"/>
-            <!-- Comments -->
             <RowDefinition Height="Auto"/>
-            <!-- Footer -->
         </Grid.RowDefinitions>
+        <TextBlock Text="AWR REQUEST FORM: SOP-QA-003-F2" FontSize="14" Foreground="#555" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
-        <!-- 1. TITLE -->
-        <TextBlock Text="AWR REQUEST FORM: SOP-QA-003-F2" 
-                   FontSize="14" Foreground="#555" HorizontalAlignment="Center" Margin="0,0,0,20"/>
-
-        <!-- 2. REQUEST DETAILS GROUP -->
         <GroupBox Grid.Row="1" Header="Request Details" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
             <Grid Margin="20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="120"/>
-                    <!-- Label Col 1 -->
                     <ColumnDefinition Width="*"/>
-                    <!-- Input Col 1 -->
                     <ColumnDefinition Width="120"/>
-                    <!-- Label Col 2 -->
                     <ColumnDefinition Width="*"/>
-                    <!-- Input Col 2 -->
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="45"/>
                     <RowDefinition Height="45"/>
                     <RowDefinition Height="45"/>
                 </Grid.RowDefinitions>
-
-                <!-- Row 1 -->
                 <TextBlock Text="Request No:" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
                 <TextBox Text="{Binding RequestNo}" IsReadOnly="True" Background="#E9ECEF" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-
                 <TextBlock Text="Type:" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabelStyle}"/>
                 <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding AwrTypes}" SelectedItem="{Binding SelectedType}" Style="{StaticResource FormComboStyle}"/>
 
-                <!-- Row 2 -->
                 <TextBlock Text="Material:" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-
+                <TextBox Text="{Binding MaterialProduct}" Tag="{Binding IsMaterialError}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
                 <TextBlock Text="Batch:" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
+                <TextBox Text="{Binding BatchNo}" Tag="{Binding IsBatchError}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
 
-                <!-- Row 3 -->
                 <TextBlock Text="AR No:" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding ArNo}" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-
+                <TextBox Text="{Binding ArNo}" Tag="{Binding IsArError}" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
                 <TextBlock Text="AWR No:" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding AwrNo}" Grid.Row="2" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
+
+                <!-- BINDING IsAwrError HERE -->
+                <TextBox Text="{Binding AwrNo}" Tag="{Binding IsAwrError}" Grid.Row="2" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
             </Grid>
         </GroupBox>
 
-        <!-- 3. COMMENTS SECTION -->
         <GroupBox Grid.Row="2" Header="Comments / Justification" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
-            <TextBox Text="{Binding Comments}" 
-                     AcceptsReturn="True" TextWrapping="Wrap" 
-                     VerticalContentAlignment="Top" Padding="5"
-                     BorderThickness="0" Margin="5"
-                     FontSize="13"/>
+            <TextBox Text="{Binding Comments}" Tag="{Binding IsCommentError}" Style="{StaticResource FormInputStyle}"
+                     AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Height="200" Margin="5,0,4,0"/>
         </GroupBox>
 
-        <!-- 4. FOOTER ACTIONS -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-
-            <!-- Status Left -->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <TextBlock Text="Status: " FontWeight="Bold" Foreground="#333"/>
                 <TextBlock Text="{Binding StatusMessage}" Foreground="#333"/>
             </StackPanel>
-
-            <!-- Submit Right -->
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <ProgressBar Width="100" Height="15" IsIndeterminate="True" Margin="0,0,15,0" 
-                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
-
-                <Button Content="Submit Request" Command="{Binding SubmitCommand}" 
-                        Background="#28A745" Foreground="White" FontWeight="Bold" FontSize="13"
-                        Width="150" Height="35" BorderThickness="0">
+                <ProgressBar Width="100" Height="15" IsIndeterminate="True" Margin="0,0,15,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+                <Button Content="Submit Request" Command="{Binding SubmitCommand}" Background="#28A745" Foreground="White" FontWeight="Bold" FontSize="13" Width="150" Height="35" BorderThickness="0">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="4"/>
