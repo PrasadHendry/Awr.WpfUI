@@ -42,8 +42,23 @@ namespace Awr.Data.Repositories
         public void InsertAwrRequestItems(IDbConnection connection, IDbTransaction transaction, int awrRequestId, List<AwrItemSubmissionDto> items)
         {
             if (awrRequestId <= 0 || !items.Any()) return;
-            const string itemSql = "INSERT INTO dbo.AwrRequestItem (AwrRequestId, MaterialProduct, BatchNo, ArNo, QtyRequired, Status) VALUES (@AwrRequestId, @MaterialProduct, @BatchNo, @ArNo, 1, 'PendingIssuance');";
-            var itemParameters = items.Select(item => new { AwrRequestId = awrRequestId, item.MaterialProduct, item.BatchNo, item.ArNo });
+
+            // UPDATED: Using @QtyRequired instead of hardcoded 1
+            const string itemSql = @"
+                INSERT INTO dbo.AwrRequestItem 
+                (AwrRequestId, MaterialProduct, BatchNo, ArNo, QtyRequired, Status) 
+                VALUES 
+                (@AwrRequestId, @MaterialProduct, @BatchNo, @ArNo, @QtyRequired, 'PendingIssuance');";
+
+            var itemParameters = items.Select(item => new
+            {
+                AwrRequestId = awrRequestId,
+                item.MaterialProduct,
+                item.BatchNo,
+                item.ArNo,
+                item.QtyRequired // Maps to DTO
+            });
+
             connection.Execute(itemSql, itemParameters, transaction: transaction);
         }
 
@@ -60,11 +75,8 @@ namespace Awr.Data.Repositories
                     WHEN i.Status = 'InUse' THEN " + (int)AwrItemStatus.Received + @"
                     WHEN i.Status = 'PendingIssuance' THEN " + (int)AwrItemStatus.PendingIssuance + @"
                     WHEN i.Status = 'Issued' THEN " + (int)AwrItemStatus.Issued + @"
-                    
-                    -- FIX: Map BOTH 'Returned' (Legacy) and 'Voided' (New) to Enum 4
                     WHEN i.Status = 'Returned' THEN " + (int)AwrItemStatus.Voided + @"
                     WHEN i.Status = 'Voided' THEN " + (int)AwrItemStatus.Voided + @"
-                    
                     WHEN i.Status = 'Complete' THEN " + (int)AwrItemStatus.Complete + @"
                     WHEN i.Status = 'RejectedByQa' THEN " + (int)AwrItemStatus.RejectedByQa + @"
                     ELSE 0 
@@ -106,8 +118,7 @@ namespace Awr.Data.Repositories
 
         public List<AwrItemQueueDto> GetItemsForReturnQueue(string requesterUsername)
         {
-            // Logic for legacy 'Return' queue if needed, now conceptually the Void history
-            string sql = ItemQueueSelectSql + @"WHERE (i.Status = 'InUse' OR i.Status = 'Voided' OR i.Status = 'Returned') AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt, i.Id;";
+            string sql = ItemQueueSelectSql + @"WHERE (i.Status = 'InUse' OR i.Status = 'Voided') AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt, i.Id;";
             using (var connection = GetConnection()) return connection.Query<AwrItemQueueDto>(sql, new { Username = requesterUsername }).ToList();
         }
 
@@ -121,10 +132,11 @@ namespace Awr.Data.Repositories
 
         public void IssueItem(int itemId, decimal qtyIssued, string qaUsername)
         {
-            const string sql = @"UPDATE dbo.AwrRequestItem SET QtyIssued = 1, IssuedByUsername = @Username, IssuedAt = GETDATE(), Status = 'Issued' WHERE Id = @ItemId AND Status = 'PendingIssuance';";
+            const string sql = @"UPDATE dbo.AwrRequestItem SET QtyIssued = @Qty, IssuedByUsername = @Username, IssuedAt = GETDATE(), Status = 'Issued' WHERE Id = @ItemId AND Status = 'PendingIssuance';";
             using (var connection = GetConnection())
             {
-                if (connection.Execute(sql, new { ItemId = itemId, Username = qaUsername }) == 0) throw new InvalidOperationException("Issuance failed.");
+                // Note: QtyIssued tracks actual output, usually matches Request.
+                if (connection.Execute(sql, new { ItemId = itemId, Username = qaUsername, Qty = qtyIssued }) == 0) throw new InvalidOperationException("Issuance failed.");
             }
         }
 
@@ -146,7 +158,6 @@ namespace Awr.Data.Repositories
                 {
                     try
                     {
-                        // 1. Update ITEM Status to 'Voided'
                         const string itemSql = @"
                             UPDATE dbo.AwrRequestItem 
                             SET ReturnedByUsername = @Username, 
@@ -163,7 +174,6 @@ namespace Awr.Data.Repositories
                         if (headerId == null)
                             throw new InvalidOperationException("Void failed. Item not found or not in 'Issued' state.");
 
-                        // 2. Update HEADER Status to 'Voided'
                         const string headerSql = @"UPDATE dbo.AwrRequest SET CurrentStatus = 'Voided' WHERE Id = @HeaderId;";
                         connection.Execute(headerSql, new { HeaderId = headerId }, transaction: transaction);
 

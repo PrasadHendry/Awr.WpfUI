@@ -1,11 +1,11 @@
-<UserControl x:Class="Awr.WpfUI.Views.NewRequestView"
+﻿<UserControl x:Class="Awr.WpfUI.Views.NewRequestView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:vm="clr-namespace:Awr.WpfUI.ViewModels"
              mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000" Background="#F0F2F5">
+             d:DesignHeight="650" d:DesignWidth="1000" Background="#F0F2F5">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
@@ -24,8 +24,6 @@
             <Setter Property="Margin" Value="0,0,20,0"/>
             <Setter Property="FontSize" Value="13"/>
         </Style>
-
-        <!-- Validation Style using DataTrigger -->
         <Style TargetType="TextBox" x:Key="FormInputStyle">
             <Setter Property="Height" Value="30"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -34,10 +32,9 @@
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="BorderBrush" Value="#CCC"/>
             <Style.Triggers>
-                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}" Value="True">
-                    <Setter Property="BorderBrush" Value="Red"/>
-                    <Setter Property="BorderThickness" Value="2"/>
-                </DataTrigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#F0F0F0"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
@@ -49,45 +46,106 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
+
+        <!-- Title -->
         <TextBlock Text="AWR REQUEST FORM: SOP-QA-003-F2" FontSize="14" Foreground="#555" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
+        <!-- Details -->
         <GroupBox Grid.Row="1" Header="Request Details" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
             <Grid Margin="20">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="130"/>
+                    <!-- Increased width for labels -->
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="130"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="45"/>
                     <RowDefinition Height="45"/>
                     <RowDefinition Height="45"/>
+                    <RowDefinition Height="45"/>
                 </Grid.RowDefinitions>
-                <TextBlock Text="Request No:" Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
+
+                <!-- Row 1 -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
+                    Request No <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
                 <TextBox Text="{Binding RequestNo}" IsReadOnly="True" Background="#E9ECEF" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-                <TextBlock Text="Type:" Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabelStyle}"/>
+
+                <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
+                    Type <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
                 <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding AwrTypes}" SelectedItem="{Binding SelectedType}" Style="{StaticResource FormComboStyle}"/>
 
-                <TextBlock Text="Material:" Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding MaterialProduct}" Tag="{Binding IsMaterialError}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-                <TextBlock Text="Batch:" Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding BatchNo}" Tag="{Binding IsBatchError}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
+                <!-- Row 2 -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
+                    Material <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
+                <TextBox Text="{Binding MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
 
-                <TextBlock Text="AR No:" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
-                <TextBox Text="{Binding ArNo}" Tag="{Binding IsArError}" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-                <TextBlock Text="AWR No:" Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabelStyle}"/>
+                <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
+                    Batch <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
+                <TextBox Text="{Binding BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
 
-                <!-- BINDING IsAwrError HERE -->
-                <TextBox Text="{Binding AwrNo}" Tag="{Binding IsAwrError}" Grid.Row="2" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
+                <!-- Row 3 -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
+                    AR No <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
+                <TextBox Text="{Binding ArNo}" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
+
+                <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
+                    AWR No <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
+
+                <!-- SEARCHABLE COMBOBOX FIX -->
+                <ComboBox Grid.Row="2" Grid.Column="3" 
+                          ItemsSource="{Binding FilteredAwrNumbers}" 
+                          Text="{Binding AwrNo, UpdateSourceTrigger=PropertyChanged}"
+                          IsEditable="True"
+                          IsTextSearchEnabled="False"
+                          StaysOpenOnEdit="True"
+                          Style="{StaticResource FormComboStyle}"/>
+
+                <!-- Row 4: Qty -->
+                <TextBlock Text="Qty Required:" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
+
+                <Grid Grid.Row="3" Grid.Column="1" Height="30" Margin="0,0,20,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="30"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Text="{Binding QtyRequired}" IsEnabled="{Binding IsQtyEnabled}" 
+                             Style="{StaticResource FormInputStyle}" Margin="0" 
+                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0"/>
+
+                    <Grid Grid.Column="1" Margin="2,0,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Button Content="▲" FontSize="8" Padding="0" Margin="0,0,0,1" Command="{Binding IncrementQtyCommand}" IsEnabled="{Binding IsQtyEnabled}"/>
+                        <Button Content="▼" FontSize="8" Padding="0" Margin="0,1,0,0" Grid.Row="1" Command="{Binding DecrementQtyCommand}" IsEnabled="{Binding IsQtyEnabled}"/>
+                    </Grid>
+                </Grid>
             </Grid>
         </GroupBox>
 
+        <!-- Comments -->
         <GroupBox Grid.Row="2" Header="Comments / Justification" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
-            <TextBox Text="{Binding Comments}" Tag="{Binding IsCommentError}" Style="{StaticResource FormInputStyle}"
-                     AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Height="200" Margin="5,0,4,0"/>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="* Required" Foreground="Red" FontSize="10" Margin="5,0,0,0"/>
+                <TextBox Grid.Row="1" Text="{Binding Comments}" Style="{StaticResource FormInputStyle}" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Height="NaN" Margin="5,10,5,10"/>
+            </Grid>
         </GroupBox>
 
+        <!-- Footer -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
