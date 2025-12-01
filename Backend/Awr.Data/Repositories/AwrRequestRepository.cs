@@ -106,7 +106,7 @@ namespace Awr.Data.Repositories
 
         public List<AwrItemQueueDto> GetItemsForIssuanceQueue()
         {
-            string sql = ItemQueueSelectSql + "WHERE i.Status = 'PendingIssuance' ORDER BY r.RequestedAt, i.Id;";
+            string sql = ItemQueueSelectSql + "WHERE i.Status = 'PendingIssuance' ORDER BY r.RequestedAt DESC, i.Id;";
             using (var connection = GetConnection()) return connection.Query<AwrItemQueueDto>(sql).ToList();
         }
 

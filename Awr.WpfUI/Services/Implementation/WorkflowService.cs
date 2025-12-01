@@ -93,14 +93,13 @@ namespace Awr.WpfUI.Services.Implementation
 
         // --- Workflow Actions ---
 
-        public async Task IssueItemAsync(int itemId, string qaUsername)
+        public async Task IssueItemAsync(int itemId, decimal qtyIssued, string qaUsername)
         {
             await Task.Run(() =>
             {
-                // 1. Trigger Worker (Generate & Encrypt)
                 ProcessWorkerAction(itemId, qaUsername, WorkerConstants.ModeGenerate);
-                // 2. Update DB
-                _repository.IssueItem(itemId, 1, qaUsername);
+                // Pass the quantity to repository
+                _repository.IssueItem(itemId, qtyIssued, qaUsername);
             });
         }
 

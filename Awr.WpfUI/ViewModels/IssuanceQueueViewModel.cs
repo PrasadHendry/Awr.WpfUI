@@ -55,8 +55,15 @@ namespace Awr.WpfUI.ViewModels
         {
             if (SelectedItem == null) return;
 
-            if (MessageBox.Show($"Approve Request {SelectedItem.RequestNo} for {SelectedItem.MaterialProduct}?",
-                "Confirm Approval", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.No)
+            string confirmMsg = $"Approve Request {SelectedItem.RequestNo}?";
+
+            // Show Quantity in confirmation if > 1
+            if (SelectedItem.QtyRequired > 1)
+            {
+                confirmMsg += $"\n\nQuantity to Issue: {SelectedItem.QtyRequired:0}";
+            }
+
+            if (MessageBox.Show(confirmMsg, "Confirm Approval", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.No)
                 return;
 
             IsBusy = true;
@@ -64,12 +71,12 @@ namespace Awr.WpfUI.ViewModels
 
             try
             {
-                // 1. Call Service (Triggers Worker Process + DB Update)
-                await Service.IssueItemAsync(SelectedItem.ItemId, Username);
+                // CHANGE: Pass QtyRequired as the QtyIssued value
+                // Ideally, we could add an input box to let QA change this, 
+                // but standard flow is Issue = Request.
+                await Service.IssueItemAsync(SelectedItem.ItemId, SelectedItem.QtyRequired, Username);
 
-                MessageBox.Show($"Request {SelectedItem.RequestNo} approved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // 2. Refresh Grid
+                MessageBox.Show($"Request approved.", "Success");
                 await LoadDataAsync();
             }
             catch (Exception ex)

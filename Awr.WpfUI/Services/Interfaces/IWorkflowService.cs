@@ -20,7 +20,7 @@ namespace Awr.WpfUI.Services.Interfaces
         Task<List<AwrItemQueueDto>> GetMySubmittedItemsAsync(string username);
 
         // --- Workflow Actions (Worker & DB Updates) ---
-        Task IssueItemAsync(int itemId, string qaUsername);
+        Task IssueItemAsync(int itemId, decimal qtyIssued, string qaUsername);
         Task PrintAndReceiveItemAsync(int itemId, string qcUsername);
 
         // --- DB Only Actions ---

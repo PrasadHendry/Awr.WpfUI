@@ -79,13 +79,13 @@
             <!-- Frozen + Taller Rows -->
 
             <DataGrid.Columns>
-                <!-- Frozen -->
                 <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="160" FontWeight="Bold" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                 <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="160" ElementStyle="{StaticResource WrappedColumnStyle}"/>
 
-                <!-- Scrollable -->
+                <!-- NEW COLUMN -->
+                <DataGridTextColumn Header="Qty Required" Binding="{Binding QtyRequired, StringFormat=0}" Width="160" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+
                 <DataGridTextColumn Header="Prepared By (QC)" Binding="{Binding RequestedBy}" Width="200" ElementStyle="{StaticResource WrappedColumnStyle}"/>
-                <!-- Note: Date column needs special ElementStyle for formatting + wrapping -->
                 <DataGridTemplateColumn Header="Date" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
