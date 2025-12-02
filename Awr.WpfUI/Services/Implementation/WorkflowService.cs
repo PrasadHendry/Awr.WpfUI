@@ -7,7 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web.Script.Serialization; // Requires ref: System.Web.Extensions
+using System.Web.Script.Serialization;
 using Awr.Core.DTOs;
 using Awr.Core.Interfaces;
 using Awr.Data.Repositories;
@@ -36,11 +36,10 @@ namespace Awr.WpfUI.Services.Implementation
         // --- Sequence Generation ---
         public string GetNextRequestNumberSequenceValue()
         {
-            // Fast synchronous call is acceptable here
             return _repository.GetNextRequestNumberSequenceValue();
         }
 
-        // --- Submission (Transactional) ---
+        // --- Submission ---
         public async Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNo)
         {
             return await Task.Run(() =>
@@ -52,16 +51,10 @@ namespace Awr.WpfUI.Services.Implementation
                     {
                         try
                         {
-                            // 1. Insert Header
                             _repository.SubmitNewAwrRequest(connection, transaction, requestNo, requestDto, preparedByUsername);
-
-                            // 2. Get Generated ID
                             const string getIdSql = "SELECT Id FROM dbo.AwrRequest WHERE RequestNo = @RequestNo";
                             int newRequestId = connection.QuerySingle<int>(getIdSql, new { RequestNo = requestNo }, transaction: transaction);
-
-                            // 3. Insert Items
                             _repository.InsertAwrRequestItems(connection, transaction, newRequestId, requestDto.Items);
-
                             transaction.Commit();
                             return requestNo;
                         }
@@ -76,19 +69,19 @@ namespace Awr.WpfUI.Services.Implementation
         }
 
         // --- Queue Retrieval ---
-        public async Task<List<AwrItemQueueDto>> GetIssuanceQueueAsync() =>
+        public async Task<List<AwrItemQueueDto>> GetIssuanceQueueAsync() => 
             await Task.Run(() => _repository.GetItemsForIssuanceQueue());
 
-        public async Task<List<AwrItemQueueDto>> GetReceiptQueueAsync(string username) =>
+        public async Task<List<AwrItemQueueDto>> GetReceiptQueueAsync(string username) => 
             await Task.Run(() => _repository.GetItemsForReceiptQueue(username));
 
-        public async Task<List<AwrItemQueueDto>> GetReturnQueueAsync(string username) =>
+        public async Task<List<AwrItemQueueDto>> GetReturnQueueAsync(string username) => 
             await Task.Run(() => _repository.GetItemsForReturnQueue(username));
 
-        public async Task<List<AwrItemQueueDto>> GetAllAuditItemsAsync() =>
+        public async Task<List<AwrItemQueueDto>> GetAllAuditItemsAsync() => 
             await Task.Run(() => _repository.GetAllAuditItems());
 
-        public async Task<List<AwrItemQueueDto>> GetMySubmittedItemsAsync(string username) =>
+        public async Task<List<AwrItemQueueDto>> GetMySubmittedItemsAsync(string username) => 
             await Task.Run(() => _repository.GetMySubmittedItems(username));
 
         // --- Workflow Actions ---
@@ -97,8 +90,11 @@ namespace Awr.WpfUI.Services.Implementation
         {
             await Task.Run(() =>
             {
+                // 1. Trigger Worker (Generate)
+                // Note: We haven't updated DB yet, so we use the passed 'qtyIssued' logic inside ProcessWorkerAction implicitly or rely on QtyRequired mapping
                 ProcessWorkerAction(itemId, qaUsername, WorkerConstants.ModeGenerate);
-                // Pass the quantity to repository
+                
+                // 2. Update DB
                 _repository.IssueItem(itemId, qtyIssued, qaUsername);
             });
         }
@@ -107,8 +103,9 @@ namespace Awr.WpfUI.Services.Implementation
         {
             await Task.Run(() =>
             {
-                // 1. Trigger Worker (Decrypt & Print)
+                // 1. Trigger Worker (Print)
                 ProcessWorkerAction(itemId, qcUsername, WorkerConstants.ModePrint);
+                
                 // 2. Update DB
                 _repository.ReceiveItem(itemId, qcUsername);
             });
@@ -116,7 +113,6 @@ namespace Awr.WpfUI.Services.Implementation
 
         public async Task VoidItemAsync(int itemId, string qcUsername, string remark)
         {
-            // No worker action for voiding
             await Task.Run(() => _repository.ReturnItem(itemId, qcUsername, remark));
         }
 
@@ -125,14 +121,12 @@ namespace Awr.WpfUI.Services.Implementation
             await Task.Run(() => _repository.RejectItem(itemId, qaUsername, comment));
         }
 
-        // --- Worker Bridge (Private Helper) ---
+        // --- Worker Bridge ---
         private void ProcessWorkerAction(int itemId, string username, string mode)
         {
-            // 1. Fetch Data
             var request = _repository.GetFullRequestById(GetRequestIdByItemId(itemId));
             var item = request.Items.First(i => i.Id == itemId);
 
-            // 2. Construct Payload
             var dto = new AwrStampingDto
             {
                 Mode = mode,
@@ -141,17 +135,21 @@ namespace Awr.WpfUI.Services.Implementation
                 ItemId = itemId,
                 MaterialProduct = item.MaterialProduct,
                 BatchNo = item.BatchNo,
+                ArNo = item.ArNo, // NEW: Mapped
                 AwrNo = request.AwrNo,
+                
+                // NEW: Use QtyRequired (which is the approved qty) for the stamp/print logic
+                // If we are printing, QtyIssued in DB might be null if legacy, so fallback to QtyRequired
+                QtyIssued = item.QtyIssued.HasValue && item.QtyIssued > 0 ? item.QtyIssued.Value : item.QtyRequired,
+
                 IssuedByUsername = mode == WorkerConstants.ModeGenerate ? username : item.IssuedByUsername,
                 PrintedByUsername = mode == WorkerConstants.ModePrint ? username : null
             };
 
-            // 3. Serialize & Encode
-            var serializer = new JavaScriptSerializer(); // Legacy compatibility
+            var serializer = new JavaScriptSerializer();
             string json = serializer.Serialize(dto);
             string base64Payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
 
-            // 4. Launch Process
             string workerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, WorkerExeName);
             if (!File.Exists(workerPath))
                 throw new FileNotFoundException($"Worker executable not found at: {workerPath}");
@@ -159,10 +157,16 @@ namespace Awr.WpfUI.Services.Implementation
             var startInfo = new ProcessStartInfo
             {
                 FileName = workerPath,
-                Arguments = $"\"CMD\" \"{base64Payload}\"", // Arg0=Dummy, Arg1=Payload
+                Arguments = $"\"CMD\" \"{base64Payload}\"",
                 UseShellExecute = false,
-                RedirectStandardOutput = true,
-                CreateNoWindow = false
+
+                // SHOW CONSOLE explicitly
+                CreateNoWindow = false,
+                WindowStyle = ProcessWindowStyle.Normal, // Ensure it's visible
+
+                // Do NOT redirect output if you want the user to see the live console window.
+                // Redirecting output usually hides the window or captures the text internally.
+                RedirectStandardOutput = false
             };
 
             using (var process = Process.Start(startInfo))
@@ -176,8 +180,6 @@ namespace Awr.WpfUI.Services.Implementation
 
         private int GetRequestIdByItemId(int itemId)
         {
-            // Helper to find parent ID. In optimized SQL, we could fetch this cheaper.
-            // Using existing repository method for safety.
             var r = _repository.GetFullRequestById(itemId);
             return r?.Id ?? 0;
         }

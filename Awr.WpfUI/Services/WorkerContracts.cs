@@ -24,7 +24,9 @@ namespace Awr.Worker.DTOs
         public int ItemId { get; set; }
         public string MaterialProduct { get; set; }
         public string BatchNo { get; set; }
+        public string ArNo { get; set; } // NEW
         public string AwrNo { get; set; }
+        public decimal QtyIssued { get; set; } // NEW
         public string IssuedByUsername { get; set; }
         public string PrintedByUsername { get; set; }
     }

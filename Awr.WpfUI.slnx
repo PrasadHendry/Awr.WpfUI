@@ -16,6 +16,7 @@
     </Project>
   </Folder>
   <Project Path="Awr.WpfUI/Awr.WpfUI.csproj" Id="f2ce177e-eb9f-4180-a28b-b61462326d5e">
+    <BuildDependency Project="Backend/Awr.Worker/Awr.Worker.WPF.csproj" />
     <Platform Solution="*|x86" Project="x86" />
     <Platform Solution="Debug|Any CPU" Project="x86" />
   </Project>

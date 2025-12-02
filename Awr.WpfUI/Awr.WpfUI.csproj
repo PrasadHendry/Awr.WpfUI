@@ -186,6 +186,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy /Y /S "$(SolutionDir)Backend\Awr.Worker\bin\Debug\*" "$(TargetDir)"</PostBuildEvent>
+    <PostBuildEvent>xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\Awr.Worker.exe" "$(TargetDir)"
+xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\Awr.Worker.exe.config" "$(TargetDir)"
+xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\*.dll" "$(TargetDir)"</PostBuildEvent>
   </PropertyGroup>
 </Project>

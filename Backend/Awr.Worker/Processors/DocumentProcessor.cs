@@ -37,14 +37,14 @@ namespace Awr.Worker.Processors
         // --- QA: Generate (Stamp & Encrypt) ---
         private void GenerateSecureDocument()
         {
-            // Input: Template (e.g., AWR-RM-001.docx)
-            string sourceFilePath = FindFileByName(WorkerConstants.SourceLocation, _record.AwrNo + ".docx");
-            if (string.IsNullOrEmpty(sourceFilePath)) throw new FileNotFoundException($"Template not found: {_record.AwrNo}");
+            string sourceFilePath = FindTemplateFile(WorkerConstants.SourceLocation, _record.AwrNo);
+            if (string.IsNullOrEmpty(sourceFilePath))
+                throw new FileNotFoundException($"Template not found for: {_record.AwrNo} (checked .docx and .doc)");
 
-            // Output: Request-Specific File (e.g., REQ-101_AWR-RM-001.docx)
-            string finalFileName = $"{_record.RequestNo}_{_record.AwrNo}.docx";
+            string extension = Path.GetExtension(sourceFilePath);
+            string finalFileName = $"{_record.RequestNo}_{_record.AwrNo}{extension}";
             string finalFilePath = Path.Combine(WorkerConstants.FinalLocation, finalFileName);
-            string tempFilePath = Path.Combine(WorkerConstants.TempLocation, Guid.NewGuid() + ".docx");
+            string tempFilePath = Path.Combine(WorkerConstants.TempLocation, Guid.NewGuid() + extension);
 
             File.Copy(sourceFilePath, tempFilePath, true);
 
@@ -58,18 +58,20 @@ namespace Awr.Worker.Processors
 
                 doc = wordApp.Documents.Open(tempFilePath);
 
-                // 1. Stamp
                 foreach (Word.Section section in doc.Sections)
                 {
                     section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Text = _record.GetHeaderText();
                     section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Text = _record.GetFooterText();
                 }
 
-                // 2. Encrypt & Save
                 doc.Password = WorkerConstants.EncryptionPassword;
-                doc.SaveAs2(finalFilePath);
+                if (doc.ProtectionType == Word.WdProtectionType.wdNoProtection)
+                {
+                    doc.Protect(Word.WdProtectionType.wdAllowOnlyReading, NoReset: false, Password: WorkerConstants.RestrictEditPassword);
+                }
 
-                Console.WriteLine($" > Document Generated: {finalFileName}");
+                doc.SaveAs2(finalFilePath);
+                Console.WriteLine($" > Generated: {finalFileName}");
             }
             finally
             {
@@ -79,13 +81,14 @@ namespace Awr.Worker.Processors
             }
         }
 
-        // --- QC: Print (Open Encrypted -> Print -> Print Receipt) ---
+        // --- QC: Print (Main Doc + Receipt Table) ---
         private void PrintSecureDocument()
         {
-            string fileName = $"{_record.RequestNo}_{_record.AwrNo}.docx";
-            string filePath = Path.Combine(WorkerConstants.FinalLocation, fileName);
+            string fileNameBase = $"{_record.RequestNo}_{_record.AwrNo}";
+            string filePath = FindTemplateFile(WorkerConstants.FinalLocation, fileNameBase);
 
-            if (!File.Exists(filePath)) throw new FileNotFoundException($"Processed document not found: {fileName}");
+            if (string.IsNullOrEmpty(filePath))
+                throw new FileNotFoundException($"Processed file not found: {fileNameBase}");
 
             Word.Application wordApp = null;
             Word.Document doc = null;
@@ -95,19 +98,20 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                // 1. Print Main Document (Open with Password)
-                Console.WriteLine(" > Printing Main Document...");
+                // 1. Print Main Document
+                Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies)...");
                 doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
-                doc.PrintOut(Background: false); // Wait for print to spool
+
+                int copies = (int)_record.QtyIssued;
+                if (copies < 1) copies = 1;
+
+                doc.PrintOut(Background: false, Copies: copies);
+
                 doc.Close(false);
                 Marshal.ReleaseComObject(doc); doc = null;
 
-                // 2. Print Receipt Page
-                Console.WriteLine(" > Printing Receipt...");
-                doc = wordApp.Documents.Add();
-                doc.Range().Text = _record.GetReceiptText();
-                doc.PrintOut(Background: false);
-                doc.Close(false);
+                // 2. Print Receipt Table
+                PrintReceiptTable(wordApp);
             }
             finally
             {
@@ -116,10 +120,85 @@ namespace Awr.Worker.Processors
             }
         }
 
-        private string FindFileByName(string directory, string fileName)
+        private void PrintReceiptTable(Word.Application wordApp)
         {
-            string path = Path.Combine(directory, fileName);
-            return File.Exists(path) ? path : null;
+            Console.WriteLine(" > Printing Receipt...");
+            Word.Document doc = wordApp.Documents.Add();
+
+            try
+            {
+                var range = doc.Range();
+
+                // Title
+                range.Text = "AWR DOCUMENT ISSUANCE RECEIPT\n";
+                range.Font.Name = "Arial";
+                range.Font.Bold = 1;
+                range.Font.Size = 14;
+                range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
+                range.InsertParagraphAfter();
+
+                // Spacer
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                range.Text = "\n";
+                range.InsertParagraphAfter();
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+
+                // Table
+                range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
+                range.Font.Size = 11;
+                range.Font.Bold = 0;
+
+                Word.Table table = doc.Tables.Add(range, 7, 2);
+                table.Borders.Enable = 1;
+                table.Columns[1].Width = 150;
+                table.Columns[2].Width = 300;
+
+                // Fill Table
+                void AddRow(int r, string k, string v)
+                {
+                    table.Cell(r, 1).Range.Text = k;
+                    table.Cell(r, 1).Range.Font.Bold = 1;
+                    table.Cell(r, 2).Range.Text = v;
+                }
+
+                AddRow(1, "Request No:", _record.RequestNo);
+                AddRow(2, "Document ID:", _record.AwrNo);
+                AddRow(3, "Material / Product:", _record.MaterialProduct);
+                AddRow(4, "Batch No:", _record.BatchNo);
+                AddRow(5, "Copies Issued:", _record.QtyIssued.ToString("0"));
+                AddRow(6, "Received By (User):", _record.PrintedByUsername);
+                AddRow(7, "Timestamp:", _record.FinalActionDateText);
+
+                // Footer / Signature
+                range = doc.Range();
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                range.InsertParagraphAfter();
+                range.Text = "\nI acknowledge receipt of the above controlled documents.\n\n\n\n";
+                range.Font.Bold = 0;
+                range.InsertParagraphAfter();
+
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                range.Text = "____________________________________\nSignature & Date";
+                range.Font.Bold = 1;
+
+                doc.PrintOut(Background: false);
+            }
+            finally
+            {
+                doc.Close(false);
+                Marshal.ReleaseComObject(doc);
+            }
+        }
+
+        private string FindTemplateFile(string directory, string fileNameNoExt)
+        {
+            string pathDocx = Path.Combine(directory, fileNameNoExt + ".docx");
+            if (File.Exists(pathDocx)) return pathDocx;
+
+            string pathDoc = Path.Combine(directory, fileNameNoExt + ".doc");
+            if (File.Exists(pathDoc)) return pathDoc;
+
+            return null;
         }
     }
 }

@@ -5,7 +5,7 @@ namespace Awr.Worker.DTOs
 {
     public class AwrStampingDto
     {
-        // Operation Mode (GENERATE or PRINT)
+        // Operation Mode
         public string Mode { get; set; }
 
         // Header Fields
@@ -16,28 +16,49 @@ namespace Awr.Worker.DTOs
         public int ItemId { get; set; }
         public string MaterialProduct { get; set; }
         public string BatchNo { get; set; }
+        public string ArNo { get; set; } // NEW
         public string AwrNo { get; set; }
 
+        public decimal QtyIssued { get; set; } // NEW (Decimal to match DB, cast to int for printing)
+
         // Audit Fields
-        public string IssuedByUsername { get; set; }  // QA User
-        public string PrintedByUsername { get; set; } // QC User (For Receipt)
+        public string IssuedByUsername { get; set; }
+        public string PrintedByUsername { get; set; }
 
         // Helpers
         public string FinalActionDateText => DateTime.Now.ToString(Configuration.WorkerConstants.DateTimeFormat);
 
-        public string GetHeaderText() => $"{MaterialProduct} / Batch: {BatchNo}\nAWR No: {AwrNo}\nTYPE: {AwrType}";
+        // --- NEW HEADER FORMAT ---
+        // (material/product) / batch no. / AR No.
+        // Qty Issued: (Qty)
+        // AWR No.: ...
+        // CONTROLLED DOCUMENT...
+        public string GetHeaderText()
+        {
+            return $"{MaterialProduct} / {BatchNo} / {ArNo}\n" +
+                   $"Qty Issued: {QtyIssued:0}\n" +
+                   $"AWR No.: {AwrNo}\n" +
+                   $"CONTROLLED DOCUMENT - ISSUED COPY (S/W)";
+        }
 
-        public string GetFooterText() =>
-            $"Request No: {RequestNo} | Item ID: {ItemId}\n" +
-            $"Approved By (QA): {IssuedByUsername}\n" +
-            $"Generated On: {FinalActionDateText}";
+        // --- NEW FOOTER FORMAT ---
+        // Request No: ...
+        // Issued By (QA): ... on ...
+        // Status: Approved (Issued) | Processed On: ...
+        public string GetFooterText()
+        {
+            return $"Request No: {RequestNo}\n" +
+                   $"Issued By (QA): {IssuedByUsername} on {FinalActionDateText}\n" +
+                   $"Status: Approved (Issued) | Processed On: {FinalActionDateText}";
+        }
 
         public string GetReceiptText() =>
             $"*** AWR DOCUMENT RECEIPT ***\n\n" +
             $"Request No: {RequestNo}\n" +
             $"Document: {AwrNo}\n" +
             $"Material: {MaterialProduct}\n" +
-            $"Batch: {BatchNo}\n\n" +
+            $"Batch: {BatchNo}\n" +
+            $"Copies Printed: {QtyIssued:0}\n\n" +
             $"Received & Printed By: {PrintedByUsername}\n" +
             $"Date: {FinalActionDateText}\n\n" +
             $"[ Digital Signature Placeholder ]";
