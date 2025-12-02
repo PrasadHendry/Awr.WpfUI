@@ -20,26 +20,16 @@ namespace Awr.Worker.Processors
 
         public void ProcessRequest()
         {
-            if (_record.Mode == WorkerConstants.ModeGenerate)
-            {
-                GenerateSecureDocument();
-            }
-            else if (_record.Mode == WorkerConstants.ModePrint)
-            {
-                PrintSecureDocument();
-            }
-            else
-            {
-                throw new InvalidOperationException($"Unknown Mode: {_record.Mode}");
-            }
+            if (_record.Mode == WorkerConstants.ModeGenerate) GenerateSecureDocument();
+            else if (_record.Mode == WorkerConstants.ModePrint) PrintSecureDocument();
+            else throw new InvalidOperationException($"Unknown Mode: {_record.Mode}");
         }
 
-        // --- QA: Generate (Decrypt -> Stamp -> Encrypt) ---
+        // --- QA: Generate ---
         private void GenerateSecureDocument()
         {
             string sourceFilePath = FindTemplateFile(WorkerConstants.SourceLocation, _record.AwrNo);
-            if (string.IsNullOrEmpty(sourceFilePath))
-                throw new FileNotFoundException($"Template not found for: {_record.AwrNo} (checked .docx and .doc)");
+            if (string.IsNullOrEmpty(sourceFilePath)) throw new FileNotFoundException($"Template not found: {_record.AwrNo}");
 
             string extension = Path.GetExtension(sourceFilePath);
             string finalFileName = $"{_record.RequestNo}_{_record.AwrNo}{extension}";
@@ -56,34 +46,40 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                // FIX 1: Provide Password when opening Template (in case it was already secured)
-                try
-                {
-                    doc = wordApp.Documents.Open(tempFilePath, PasswordDocument: WorkerConstants.EncryptionPassword);
-                }
-                catch
-                {
-                    // Fallback: Try opening without password (if template is clean)
-                    doc = wordApp.Documents.Open(tempFilePath);
-                }
+                // Open (Try Secure, then Plain)
+                try { doc = wordApp.Documents.Open(tempFilePath, PasswordDocument: WorkerConstants.EncryptionPassword); }
+                catch { doc = wordApp.Documents.Open(tempFilePath); }
 
-                // FIX 2: Unprotect if restricted so we can edit headers
+                // Unprotect
                 if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
                 {
-                    try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { /* Ignore if already unlocked */ }
+                    try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
                 }
 
-                // 3. Stamp Headers/Footers
+                // --- STAMPING LOGIC (UPDATED) ---
                 foreach (Word.Section section in doc.Sections)
                 {
-                    section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Text = _record.GetHeaderText();
-                    section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Text = _record.GetFooterText();
+                    // Minimal Margins
+                    section.PageSetup.HeaderDistance = 12f; // ~0.17 inch
+                    section.PageSetup.FooterDistance = 12f;
+
+                    // Header
+                    var headerRange = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
+                    headerRange.Text = _record.GetHeaderText();
+                    headerRange.Font.Name = "Calibri";
+                    headerRange.Font.Size = 8;
+                    headerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight; // Cleaner look
+
+                    // Footer
+                    var footerRange = section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
+                    footerRange.Text = _record.GetFooterText();
+                    footerRange.Font.Name = "Calibri";
+                    footerRange.Font.Size = 8;
+                    footerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
                 }
 
-                // 4. Encrypt & Save
+                // Security & Save
                 doc.Password = WorkerConstants.EncryptionPassword;
-
-                // Re-apply restriction
                 if (doc.ProtectionType == Word.WdProtectionType.wdNoProtection)
                 {
                     doc.Protect(Word.WdProtectionType.wdAllowOnlyReading, NoReset: false, Password: WorkerConstants.RestrictEditPassword);
@@ -100,14 +96,13 @@ namespace Awr.Worker.Processors
             }
         }
 
-        // --- QC: Print (Main Doc + Receipt Table) ---
+        // --- QC: Print ---
         private void PrintSecureDocument()
         {
             string fileNameBase = $"{_record.RequestNo}_{_record.AwrNo}";
             string filePath = FindTemplateFile(WorkerConstants.FinalLocation, fileNameBase);
 
-            if (string.IsNullOrEmpty(filePath))
-                throw new FileNotFoundException($"Processed file not found: {fileNameBase}");
+            if (string.IsNullOrEmpty(filePath)) throw new FileNotFoundException($"File not found: {fileNameBase}");
 
             Word.Application wordApp = null;
             Word.Document doc = null;
@@ -117,7 +112,6 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                // 1. Print Main Document
                 Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies)...");
                 doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
 
@@ -129,7 +123,6 @@ namespace Awr.Worker.Processors
                 doc.Close(false);
                 Marshal.ReleaseComObject(doc); doc = null;
 
-                // 2. Print Receipt Table
                 PrintReceiptTable(wordApp);
             }
             finally
@@ -139,6 +132,7 @@ namespace Awr.Worker.Processors
             }
         }
 
+        // --- RECEIPT GENERATION (UPDATED) ---
         private void PrintReceiptTable(Word.Application wordApp)
         {
             Console.WriteLine(" > Printing Receipt...");
@@ -148,8 +142,9 @@ namespace Awr.Worker.Processors
             {
                 var range = doc.Range();
 
+                // Title
                 range.Text = "AWR DOCUMENT ISSUANCE RECEIPT\n";
-                range.Font.Name = "Arial";
+                range.Font.Name = "Calibri"; // Changed from Arial
                 range.Font.Bold = 1;
                 range.Font.Size = 14;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
@@ -161,10 +156,11 @@ namespace Awr.Worker.Processors
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
 
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
-                range.Font.Size = 11;
+                range.Font.Name = "Calibri";
+                range.Font.Size = 10;
                 range.Font.Bold = 0;
 
-                Word.Table table = doc.Tables.Add(range, 7, 2);
+                Word.Table table = doc.Tables.Add(range, 9, 2); // Increased rows to 9
                 table.Borders.Enable = 1;
                 table.Columns[1].Width = 150;
                 table.Columns[2].Width = 300;
@@ -176,18 +172,24 @@ namespace Awr.Worker.Processors
                     table.Cell(r, 2).Range.Text = v;
                 }
 
+                // Full Details as Requested
                 AddRow(1, "Request No:", _record.RequestNo);
-                AddRow(2, "Document ID:", _record.AwrNo);
+                AddRow(2, "Document ID (AWR):", _record.AwrNo);
                 AddRow(3, "Material / Product:", _record.MaterialProduct);
                 AddRow(4, "Batch No:", _record.BatchNo);
-                AddRow(5, "Copies Issued:", _record.QtyIssued.ToString("0"));
-                AddRow(6, "Received By (User):", _record.PrintedByUsername);
-                AddRow(7, "Timestamp:", _record.FinalActionDateText);
+                AddRow(5, "AR No:", _record.ArNo); // New Field
+                AddRow(6, "Copies Issued:", _record.QtyIssued.ToString("0"));
+                AddRow(7, "Issued By (QA):", _record.IssuedByUsername); // New Field
+                AddRow(8, "Received By (User):", _record.PrintedByUsername);
+                AddRow(9, "Timestamp:", _record.FinalActionDateText);
 
+                // Footer
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.InsertParagraphAfter();
                 range.Text = "\nI acknowledge receipt of the above controlled documents.\n\n\n\n";
+                range.Font.Name = "Calibri";
+                range.Font.Size = 10;
                 range.Font.Bold = 0;
                 range.InsertParagraphAfter();
 
@@ -215,4 +217,4 @@ namespace Awr.Worker.Processors
             return null;
         }
     }
-}7
+}
