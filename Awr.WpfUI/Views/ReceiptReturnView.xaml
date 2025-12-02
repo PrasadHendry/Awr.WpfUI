@@ -61,7 +61,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="150" FontWeight="Bold" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                 <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="150" ElementStyle="{StaticResource WrappedColumnStyle}"/>
-
+				<DataGridTextColumn Header="Qty Issued" Binding="{Binding QtyIssued, StringFormat=0}" Width="90" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                 <DataGridTextColumn Header="Type" Binding="{Binding AwrType}" Width="80" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                 <DataGridTextColumn Header="Material/Product" Binding="{Binding MaterialProduct}" Width="250" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                 <DataGridTextColumn Header="Batch No." Binding="{Binding BatchNo}" Width="120" ElementStyle="{StaticResource WrappedColumnStyle}"/>

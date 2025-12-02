@@ -112,7 +112,7 @@ namespace Awr.Data.Repositories
 
         public List<AwrItemQueueDto> GetItemsForReceiptQueue(string requesterUsername)
         {
-            string sql = ItemQueueSelectSql + @"WHERE i.Status = 'Issued' AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt, i.Id;";
+            string sql = ItemQueueSelectSql + @"WHERE i.Status = 'Issued' AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt DESC, i.Id;";
             using (var connection = GetConnection()) return connection.Query<AwrItemQueueDto>(sql, new { Username = requesterUsername }).ToList();
         }
 
