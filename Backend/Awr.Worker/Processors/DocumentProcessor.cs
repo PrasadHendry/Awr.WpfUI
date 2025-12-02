@@ -34,7 +34,7 @@ namespace Awr.Worker.Processors
             }
         }
 
-        // --- QA: Generate (Stamp & Encrypt) ---
+        // --- QA: Generate (Decrypt -> Stamp -> Encrypt) ---
         private void GenerateSecureDocument()
         {
             string sourceFilePath = FindTemplateFile(WorkerConstants.SourceLocation, _record.AwrNo);
@@ -56,15 +56,34 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                doc = wordApp.Documents.Open(tempFilePath);
+                // FIX 1: Provide Password when opening Template (in case it was already secured)
+                try
+                {
+                    doc = wordApp.Documents.Open(tempFilePath, PasswordDocument: WorkerConstants.EncryptionPassword);
+                }
+                catch
+                {
+                    // Fallback: Try opening without password (if template is clean)
+                    doc = wordApp.Documents.Open(tempFilePath);
+                }
 
+                // FIX 2: Unprotect if restricted so we can edit headers
+                if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
+                {
+                    try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { /* Ignore if already unlocked */ }
+                }
+
+                // 3. Stamp Headers/Footers
                 foreach (Word.Section section in doc.Sections)
                 {
                     section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Text = _record.GetHeaderText();
                     section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Text = _record.GetFooterText();
                 }
 
+                // 4. Encrypt & Save
                 doc.Password = WorkerConstants.EncryptionPassword;
+
+                // Re-apply restriction
                 if (doc.ProtectionType == Word.WdProtectionType.wdNoProtection)
                 {
                     doc.Protect(Word.WdProtectionType.wdAllowOnlyReading, NoReset: false, Password: WorkerConstants.RestrictEditPassword);
@@ -129,7 +148,6 @@ namespace Awr.Worker.Processors
             {
                 var range = doc.Range();
 
-                // Title
                 range.Text = "AWR DOCUMENT ISSUANCE RECEIPT\n";
                 range.Font.Name = "Arial";
                 range.Font.Bold = 1;
@@ -137,13 +155,11 @@ namespace Awr.Worker.Processors
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
                 range.InsertParagraphAfter();
 
-                // Spacer
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.Text = "\n";
                 range.InsertParagraphAfter();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
 
-                // Table
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
                 range.Font.Size = 11;
                 range.Font.Bold = 0;
@@ -153,7 +169,6 @@ namespace Awr.Worker.Processors
                 table.Columns[1].Width = 150;
                 table.Columns[2].Width = 300;
 
-                // Fill Table
                 void AddRow(int r, string k, string v)
                 {
                     table.Cell(r, 1).Range.Text = k;
@@ -169,7 +184,6 @@ namespace Awr.Worker.Processors
                 AddRow(6, "Received By (User):", _record.PrintedByUsername);
                 AddRow(7, "Timestamp:", _record.FinalActionDateText);
 
-                // Footer / Signature
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.InsertParagraphAfter();
@@ -201,4 +215,4 @@ namespace Awr.Worker.Processors
             return null;
         }
     }
-}
+}7
