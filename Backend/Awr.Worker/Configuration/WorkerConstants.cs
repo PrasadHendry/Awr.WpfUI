@@ -3,7 +3,7 @@
     public static class WorkerConstants
     {
         // Paths
-        public const string SourceLocation = @"C:\AwrTest\SourceTemplates";
+        public const string SourceRoot = @"C:\AwrTest\AWR Issuance";
         public const string TempLocation = @"C:\AwrTest\Working";
         public const string FinalLocation = @"C:\AwrTest\FinalIssuedDocs"; // Where QA generated docs live
 

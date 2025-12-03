@@ -34,11 +34,27 @@ namespace Awr.WpfUI.ViewModels
         private async Task PrintAsync()
         {
             if (SelectedItem == null) return;
-            if (MessageBox.Show($"Print Request {SelectedItem.RequestNo}?", "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.No) return;
+
+            // Updated MessageBox with Asterisk/Information Icon
+            if (MessageBox.Show($"Print Request {SelectedItem.RequestNo}?", "Confirm",
+                MessageBoxButton.YesNo, MessageBoxImage.Asterisk) == MessageBoxResult.No)
+                return;
+
             IsBusy = true;
-            try { await Service.PrintAndReceiveItemAsync(SelectedItem.ItemId, Username); MessageBox.Show("Printed.", "Success"); await LoadDataAsync(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Error"); }
-            finally { IsBusy = false; }
+            try
+            {
+                await Service.PrintAndReceiveItemAsync(SelectedItem.ItemId, Username);
+                MessageBox.Show("Printed.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         private async Task VoidAsync()

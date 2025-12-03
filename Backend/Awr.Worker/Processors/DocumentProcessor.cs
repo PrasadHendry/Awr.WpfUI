@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Awr.Core.Enums; // Required for AwrType
 using Awr.Worker.Configuration;
 using Awr.Worker.DTOs;
 using Word = Microsoft.Office.Interop.Word;
@@ -28,8 +29,15 @@ namespace Awr.Worker.Processors
         // --- QA: Generate ---
         private void GenerateSecureDocument()
         {
-            string sourceFilePath = FindTemplateFile(WorkerConstants.SourceLocation, _record.AwrNo);
-            if (string.IsNullOrEmpty(sourceFilePath)) throw new FileNotFoundException($"Template not found: {_record.AwrNo}");
+            // 1. Determine Correct Source Folder
+            string typeSubFolder = GetSubFolderForType(_record.AwrType);
+            string searchDirectory = Path.Combine(WorkerConstants.SourceRoot, typeSubFolder);
+
+            // 2. Find Template
+            string sourceFilePath = FindTemplateFile(searchDirectory, _record.AwrNo);
+
+            if (string.IsNullOrEmpty(sourceFilePath))
+                throw new FileNotFoundException($"Template '{_record.AwrNo}' not found in folder: {typeSubFolder}");
 
             string extension = Path.GetExtension(sourceFilePath);
             string finalFileName = $"{_record.RequestNo}_{_record.AwrNo}{extension}";
@@ -56,21 +64,18 @@ namespace Awr.Worker.Processors
                     try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
                 }
 
-                // --- STAMPING LOGIC (UPDATED) ---
+                // Stamp Header/Footer (Calibri 8pt)
                 foreach (Word.Section section in doc.Sections)
                 {
-                    // Minimal Margins
-                    section.PageSetup.HeaderDistance = 12f; // ~0.17 inch
+                    section.PageSetup.HeaderDistance = 12f;
                     section.PageSetup.FooterDistance = 12f;
 
-                    // Header
                     var headerRange = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
                     headerRange.Text = _record.GetHeaderText();
                     headerRange.Font.Name = "Calibri";
                     headerRange.Font.Size = 8;
-                    headerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight; // Cleaner look
+                    headerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
 
-                    // Footer
                     var footerRange = section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
                     footerRange.Text = _record.GetFooterText();
                     footerRange.Font.Name = "Calibri";
@@ -78,7 +83,7 @@ namespace Awr.Worker.Processors
                     footerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
                 }
 
-                // Security & Save
+                // Encrypt & Save
                 doc.Password = WorkerConstants.EncryptionPassword;
                 if (doc.ProtectionType == Word.WdProtectionType.wdNoProtection)
                 {
@@ -132,7 +137,6 @@ namespace Awr.Worker.Processors
             }
         }
 
-        // --- RECEIPT GENERATION (UPDATED) ---
         private void PrintReceiptTable(Word.Application wordApp)
         {
             Console.WriteLine(" > Printing Receipt...");
@@ -144,7 +148,7 @@ namespace Awr.Worker.Processors
 
                 // Title
                 range.Text = "AWR DOCUMENT ISSUANCE RECEIPT\n";
-                range.Font.Name = "Calibri"; // Changed from Arial
+                range.Font.Name = "Calibri";
                 range.Font.Bold = 1;
                 range.Font.Size = 14;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
@@ -160,7 +164,7 @@ namespace Awr.Worker.Processors
                 range.Font.Size = 10;
                 range.Font.Bold = 0;
 
-                Word.Table table = doc.Tables.Add(range, 9, 2); // Increased rows to 9
+                Word.Table table = doc.Tables.Add(range, 9, 2);
                 table.Borders.Enable = 1;
                 table.Columns[1].Width = 150;
                 table.Columns[2].Width = 300;
@@ -172,18 +176,16 @@ namespace Awr.Worker.Processors
                     table.Cell(r, 2).Range.Text = v;
                 }
 
-                // Full Details as Requested
                 AddRow(1, "Request No:", _record.RequestNo);
                 AddRow(2, "Document ID (AWR):", _record.AwrNo);
                 AddRow(3, "Material / Product:", _record.MaterialProduct);
                 AddRow(4, "Batch No:", _record.BatchNo);
-                AddRow(5, "AR No:", _record.ArNo); // New Field
+                AddRow(5, "AR No:", _record.ArNo);
                 AddRow(6, "Copies Issued:", _record.QtyIssued.ToString("0"));
-                AddRow(7, "Issued By (QA):", _record.IssuedByUsername); // New Field
+                AddRow(7, "Issued By (QA):", _record.IssuedByUsername);
                 AddRow(8, "Received By (User):", _record.PrintedByUsername);
                 AddRow(9, "Timestamp:", _record.FinalActionDateText);
 
-                // Footer
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.InsertParagraphAfter();
@@ -206,8 +208,26 @@ namespace Awr.Worker.Processors
             }
         }
 
+        private string GetSubFolderForType(AwrType type)
+        {
+            switch (type)
+            {
+                case AwrType.FPS: return "FPS-IMS-AWR ISSUANCE";
+                case AwrType.IMS: return "FPS-IMS-AWR ISSUANCE";
+                case AwrType.MICRO: return "Micro AWR Issuance";
+                case AwrType.PM: return "PM AWR Issuance";
+                case AwrType.RM: return "RM AWR Issuance";
+                case AwrType.STABILITY: return "Stability AWR Issuance";
+                case AwrType.WATER: return "Water AWR Issuance";
+                default: return ""; // Root or Unknown
+            }
+        }
+
         private string FindTemplateFile(string directory, string fileNameNoExt)
         {
+            // Note: directory passed here is now SourceRoot + SubFolder
+            if (!Directory.Exists(directory)) return null;
+
             string pathDocx = Path.Combine(directory, fileNameNoExt + ".docx");
             if (File.Exists(pathDocx)) return pathDocx;
 

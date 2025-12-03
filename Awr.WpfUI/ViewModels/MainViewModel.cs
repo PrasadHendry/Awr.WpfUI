@@ -21,6 +21,9 @@ namespace Awr.WpfUI.ViewModels
         public ICommand SignOutCommand { get; }
         private readonly string _pcUsername;
 
+        // --- NEW: Event to notify View regarding SignOut vs Exit ---
+        public event EventHandler SigningOut;
+
         public MainViewModel(string roleName, string pcUsername)
         {
             _pcUsername = pcUsername;
@@ -43,7 +46,6 @@ namespace Awr.WpfUI.ViewModels
             switch (role)
             {
                 case "Requester":
-                    // UPDATE: Use NewRequestViewModel
                     Tabs.Add(new TabItemViewModel("New Request", new NewRequestViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Receipt & Print", new ReceiptReturnViewModel(_pcUsername)));
                     break;
@@ -53,7 +55,6 @@ namespace Awr.WpfUI.ViewModels
                     break;
 
                 case "Admin":
-                    // UPDATE: Use NewRequestViewModel
                     Tabs.Add(new TabItemViewModel("New Request", new NewRequestViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Approval Queue", new IssuanceQueueViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Receipt & Print", new ReceiptReturnViewModel(_pcUsername)));
@@ -66,6 +67,17 @@ namespace Awr.WpfUI.ViewModels
 
         private void OnSignOut()
         {
+            // 1. Confirm Intent
+            if (System.Windows.MessageBox.Show("Are you sure you want to Sign Out?", "Confirm Sign Out", 
+                System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.No)
+            {
+                return;
+            }
+
+            // 2. Raise Event (Tells View to disable the closing confirmation)
+            SigningOut?.Invoke(this, EventArgs.Empty);
+
+            // 3. Restart Application
             System.Windows.Forms.Application.Restart();
             System.Windows.Application.Current.Shutdown();
         }

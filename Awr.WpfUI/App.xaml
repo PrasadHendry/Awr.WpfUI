@@ -27,7 +27,7 @@
             <Setter Property="BorderBrush" Value="#CCC"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Background" Value="White"/>
-            <Setter Property="RowHeight" Value="35"/>
+            <Setter Property="RowHeight" Value="45"/>
         </Style>
 
         <!-- VIEW MAPPINGS -->

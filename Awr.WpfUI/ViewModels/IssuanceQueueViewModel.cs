@@ -76,7 +76,7 @@ namespace Awr.WpfUI.ViewModels
                 // but standard flow is Issue = Request.
                 await Service.IssueItemAsync(SelectedItem.ItemId, SelectedItem.QtyRequired, Username);
 
-                MessageBox.Show($"Request approved.", "Success");
+                MessageBox.Show($"Request approved.", "Success", MessageBoxButton.OK, MessageBoxImage.Asterisk);
                 await LoadDataAsync();
             }
             catch (Exception ex)

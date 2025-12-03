@@ -69,8 +69,8 @@ namespace Awr.Data.Repositories
                 i.AwrRequestId AS RequestId, 
                 i.MaterialProduct, 
                 i.BatchNo,
-                i.ArNo,              
-                i.QtyRequired, 
+                ISNULL(i.ArNo, 'NA') AS ArNo,
+                ISNULL(i.QtyRequired, 0) AS QtyRequired, -- FIX: Default to 0
                 CASE 
                     WHEN i.Status = 'InUse' THEN " + (int)AwrItemStatus.Received + @"
                     WHEN i.Status = 'PendingIssuance' THEN " + (int)AwrItemStatus.PendingIssuance + @"
@@ -87,14 +87,14 @@ namespace Awr.Data.Repositories
                 r.PreparedByUsername AS RequestedBy,
                 r.RequestedAt AS RequestedAt,
                 r.RequestComment,    
-                i.QtyIssued,
-                i.IssuedByUsername AS IssuedBy,
+                ISNULL(i.QtyIssued, 0) AS QtyIssued, -- FIX: Default to 0
+                ISNULL(i.IssuedByUsername, 'NA') AS IssuedBy,
                 i.IssuedAt,
-                i.ReceivedByUsername AS ReceivedBy,
+                ISNULL(i.ReceivedByUsername, 'NA') AS ReceivedBy,
                 i.ReceivedAt,
-                i.ReturnedByUsername AS ReturnedBy,
+                ISNULL(i.ReturnedByUsername, 'NA') AS ReturnedBy,
                 i.ReturnedAt,
-                i.Remark
+                ISNULL(i.Remark, 'NA') AS Remark
             FROM dbo.AwrRequestItem i
             JOIN dbo.AwrRequest r ON i.AwrRequestId = r.Id ";
 
