@@ -27,27 +27,27 @@ namespace Awr.WpfUI.ViewModels
         private string _requestNo;
 
         // --- TYPE LOGIC ---
-        public AwrType SelectedType 
-        { 
-            get => _selectedType; 
-            set 
-            { 
+        public AwrType SelectedType
+        {
+            get => _selectedType;
+            set
+            {
                 if (SetProperty(ref _selectedType, value))
                 {
                     if (_selectedType == AwrType.RM) { IsQtyEnabled = true; }
                     else { IsQtyEnabled = false; QtyRequired = 1; }
                 }
-            } 
+            }
         }
         private AwrType _selectedType;
         public IEnumerable<AwrType> AwrTypes => Enum.GetValues(typeof(AwrType)).Cast<AwrType>().Where(t => t != AwrType.Others);
 
         // --- SEARCHABLE AWR ---
         public ObservableCollection<string> FilteredAwrNumbers { get; private set; } = new ObservableCollection<string>();
-        public string AwrNo 
-        { 
-            get => _awrNo; 
-            set { if (SetProperty(ref _awrNo, value)) FilterAwrList(); } 
+        public string AwrNo
+        {
+            get => _awrNo;
+            set { if (SetProperty(ref _awrNo, value)) FilterAwrList(); }
         }
         private string _awrNo;
 
@@ -94,13 +94,21 @@ namespace Awr.WpfUI.ViewModels
             _csvPath = ConfigurationManager.AppSettings["AwrMasterCsvPath"];
 
             SelectedType = AwrTypes.FirstOrDefault();
-            
+
             SubmitCommand = new RelayCommand(async _ => await SubmitAsync(), _ => !IsBusy);
             IncrementQtyCommand = new RelayCommand(_ => QtyRequired++, _ => IsQtyEnabled);
             DecrementQtyCommand = new RelayCommand(_ => { if (QtyRequired > 1) QtyRequired--; }, _ => IsQtyEnabled && QtyRequired > 1);
 
-            LoadNextSequence();
+            // FIX: Do NOT generate sequence on load. Set placeholder.
+            ResetFormState();
             LoadAwrFromCsv();
+        }
+
+        private void ResetFormState()
+        {
+            // Sets a visual placeholder. The real number is fetched on Submit.
+            RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-####";
+            StatusMessage = "Ready for submission.";
         }
 
         private void LoadAwrFromCsv()
@@ -109,78 +117,70 @@ namespace Awr.WpfUI.ViewModels
             {
                 if (!string.IsNullOrEmpty(_csvPath) && File.Exists(_csvPath))
                 {
-                    var lines = File.ReadAllLines(_csvPath);
-                    // Skip Header, take first column, TRIM QUOTES and SPACES
-                    _masterAwrList = lines.Skip(1)
-                                          .Select(x => x.Split(',')[0].Trim().Trim('"')) // <--- Added Trim('"')
-                                          .Where(x => !string.IsNullOrWhiteSpace(x))
-                                          .OrderBy(x => x)
-                                          .ToList();
+                    _masterAwrList = File.ReadAllLines(_csvPath).Skip(1)
+                                         .Select(x => x.Split(',')[0].Trim().Trim('"'))
+                                         .Where(x => !string.IsNullOrWhiteSpace(x))
+                                         .OrderBy(x => x).ToList();
                 }
-                else
-                {
-                    // Fallback for testing
-                    _masterAwrList = new List<string> { "AWR-TEST-001", "AWR-TEST-002" };
-                }
+                else { _masterAwrList = new List<string> { "CSV_MISSING" }; }
 
                 FilterAwrList();
             }
-            catch (Exception ex) { MessageBox.Show("Error loading AWR CSV: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("CSV Error: " + ex.Message); }
         }
 
         private void FilterAwrList()
         {
             if (_masterAwrList == null) return;
-
             string search = AwrNo?.ToLower() ?? "";
 
-            // FIX: If the text is an EXACT match to an item, assume the user selected it 
-            // and do not filter down (or reset to full list to be safe).
-            if (_masterAwrList.Any(x => x.Equals(AwrNo, StringComparison.OrdinalIgnoreCase)))
-            {
-                // Optional: You could reset to full list here, or just do nothing.
-                return;
-            }
+            if (_masterAwrList.Any(x => x.Equals(AwrNo, StringComparison.OrdinalIgnoreCase))) return;
 
             var matches = _masterAwrList.Where(x => x.ToLower().Contains(search)).ToList();
-
             FilteredAwrNumbers.Clear();
             foreach (var item in matches) FilteredAwrNumbers.Add(item);
-        }
-
-        private void LoadNextSequence()
-        {
-            try
-            {
-                string seq = _service.GetNextRequestNumberSequenceValue();
-                RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-{seq}";
-                StatusMessage = "Ready for submission.";
-            }
-            catch (Exception ex) { RequestNo = "ERROR"; StatusMessage = "Error: " + ex.Message; }
         }
 
         private async Task SubmitAsync()
         {
             if (!ValidateForm()) return;
+
             IsBusy = true;
             StatusMessage = "Submitting...";
+
             try
             {
+                // FIX: Generate Sequence ID *Here* (Just-in-Time)
+                // This ensures we only consume a number if validation passed and user clicked Submit.
+                string seq = _service.GetNextRequestNumberSequenceValue();
+                string generatedRequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-{seq}";
+
+                // Update UI immediately so user sees what is being processed
+                RequestNo = generatedRequestNo;
+
                 var dto = new AwrRequestSubmissionDto
                 {
                     Type = SelectedType,
                     RequestComment = Comments,
-                    Items = new List<AwrItemSubmissionDto> 
-                    { 
-                        new AwrItemSubmissionDto { MaterialProduct = MaterialProduct, BatchNo = BatchNo, ArNo = ArNo, AwrNo = AwrNo, QtyRequired = QtyRequired } 
+                    Items = new List<AwrItemSubmissionDto>
+                    {
+                        new AwrItemSubmissionDto { MaterialProduct = MaterialProduct, BatchNo = BatchNo, ArNo = ArNo, AwrNo = AwrNo, QtyRequired = QtyRequired }
                     }
                 };
-                await _service.SubmitNewRequestAsync(dto, _username, RequestNo);
-                MessageBox.Show($"Request {RequestNo} submitted!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await _service.SubmitNewRequestAsync(dto, _username, generatedRequestNo);
+
+                MessageBox.Show($"Request Created Successfully!\n\nID: {generatedRequestNo}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
                 ClearForm();
-                LoadNextSequence();
+                // Reset placeholder for next one
+                ResetFormState();
             }
-            catch (Exception ex) { StatusMessage = "Failed."; MessageBox.Show(ex.Message, "Error"); }
+            catch (Exception ex)
+            {
+                StatusMessage = "Failed.";
+                MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             finally { IsBusy = false; }
         }
 
@@ -188,25 +188,23 @@ namespace Awr.WpfUI.ViewModels
         {
             var missingFields = new List<string>();
 
-            if (string.IsNullOrWhiteSpace(MaterialProduct)) missingFields.Add("- Material");
-            if (string.IsNullOrWhiteSpace(BatchNo)) missingFields.Add("- Batch No");
-            if (string.IsNullOrWhiteSpace(ArNo)) missingFields.Add("- AR No");
-            if (string.IsNullOrWhiteSpace(Comments)) missingFields.Add("- Comments");
+            if (string.IsNullOrWhiteSpace(MaterialProduct)) { IsMaterialError = true; missingFields.Add("- Material"); }
+            if (string.IsNullOrWhiteSpace(BatchNo)) { IsBatchError = true; missingFields.Add("- Batch No"); }
+            if (string.IsNullOrWhiteSpace(ArNo)) { IsArError = true; missingFields.Add("- AR No"); }
+            if (string.IsNullOrWhiteSpace(Comments)) { IsCommentError = true; missingFields.Add("- Comments"); }
 
-            // Validate AWR No
             if (string.IsNullOrWhiteSpace(AwrNo))
             {
-                missingFields.Add("- AWR No");
+                IsAwrError = true; missingFields.Add("- AWR No");
             }
             else if (!_masterAwrList.Contains(AwrNo))
             {
-                MessageBox.Show($"The selected AWR No '{AwrNo}' is invalid.\nPlease select a value from the list.", "Invalid Input");
+                MessageBox.Show($"The selected AWR No '{AwrNo}' is invalid.\nPlease select a value from the list.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
             if (QtyRequired <= 0) missingFields.Add("- Quantity (must be > 0)");
 
-            // If there are missing fields, show specific message
             if (missingFields.Any())
             {
                 string message = "The following required fields are missing:\n\n" + string.Join("\n", missingFields);
