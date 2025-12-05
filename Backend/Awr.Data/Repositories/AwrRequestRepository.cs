@@ -32,7 +32,8 @@ namespace Awr.Data.Repositories
         }
 
         // Changed return type to List<string>
-        public List<string> CheckIfArNumberExists(string arNoInput)
+        // Updated Method Signature
+        public List<string> CheckIfArNumberExists(string arNoInput, int? excludeRequestId = null)
         {
             var matches = new List<string>();
 
@@ -45,13 +46,13 @@ namespace Awr.Data.Repositories
 
             if (!inputList.Any()) return matches;
 
-            // Updated Query to fetch Status too for better context
+            // SQL: Added exclude logic
             const string sql = @"
-                SELECT r.RequestNo, i.ArNo, i.Status 
+                SELECT r.RequestNo, r.Id AS RequestId, i.ArNo, i.Status 
                 FROM dbo.AwrRequestItem i
                 JOIN dbo.AwrRequest r ON i.AwrRequestId = r.Id
                 WHERE i.Status IN ('Issued', 'InUse', 'PendingIssuance')
-                ORDER BY r.RequestedAt DESC"; // <--- ADDED SORTING
+                ORDER BY r.RequestedAt DESC";
 
             using (var connection = GetConnection())
             {
@@ -61,6 +62,10 @@ namespace Awr.Data.Repositories
                 {
                     foreach (var row in activeRequests)
                     {
+                        // FIX: Skip if this is the request we are currently editing/approving
+                        if (excludeRequestId.HasValue && (int)row.RequestId == excludeRequestId.Value)
+                            continue;
+
                         string dbArString = (string)row.ArNo;
                         if (string.IsNullOrEmpty(dbArString)) continue;
 
@@ -69,7 +74,6 @@ namespace Awr.Data.Repositories
 
                         if (dbArList.Contains(inputAr, StringComparer.OrdinalIgnoreCase))
                         {
-                            // Format: "AR-123 (In AWR-2025... [Status])"
                             matches.Add($"AR '{inputAr}' found in {row.RequestNo} [{row.Status}]");
                         }
                     }
@@ -77,6 +81,26 @@ namespace Awr.Data.Repositories
             }
 
             return matches.Distinct().ToList();
+        }
+
+        // New Interface Method Implementation
+        public List<AwrItemQueueDto> GetAuditItemsPaged(int pageNumber, int pageSize, out int totalRecords)
+        {
+            // 1. Get Count
+            const string countSql = "SELECT COUNT(*) FROM dbo.AwrRequestItem";
+
+            // 2. Get Data (SQL 2012+ Syntax)
+            string sql = ItemQueueSelectSql +
+                         @"ORDER BY r.RequestedAt DESC, i.Id 
+                           OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
+
+            using (var connection = GetConnection())
+            {
+                totalRecords = connection.ExecuteScalar<int>(countSql);
+
+                int offset = (pageNumber - 1) * pageSize;
+                return connection.Query<AwrItemQueueDto>(sql, new { Offset = offset, PageSize = pageSize }).ToList();
+            }
         }
 
         public int SubmitNewAwrRequest(IDbConnection connection, IDbTransaction transaction, string requestNo, AwrRequestSubmissionDto requestDto, string preparedByUsername)

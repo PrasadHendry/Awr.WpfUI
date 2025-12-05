@@ -33,14 +33,19 @@ namespace Awr.WpfUI.Services.Implementation
             _repository = new AwrRequestRepository(_connectionString);
         }
 
+        public List<AwrItemQueueDto> GetAuditItemsPaged(int page, int size, out int total)
+        {
+            return _repository.GetAuditItemsPaged(page, size, out total);
+        }
+
         // --- Sequence Generation ---
         public string GetNextRequestNumberSequenceValue()
         {
             return _repository.GetNextRequestNumberSequenceValue();
         }
-        public List<string> CheckIfArNumberExists(string arNo)
+        public List<string> CheckIfArNumberExists(string arNo, int? excludeRequestId = null)
         {
-            return _repository.CheckIfArNumberExists(arNo);
+            return _repository.CheckIfArNumberExists(arNo, excludeRequestId);
         }
 
         // --- Submission ---

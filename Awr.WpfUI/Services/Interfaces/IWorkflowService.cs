@@ -9,7 +9,9 @@ namespace Awr.WpfUI.Services.Interfaces
         // --- Sequence Generation ---
         string GetNextRequestNumberSequenceValue();
         // NEW: Duplicate Check
-        List<string> CheckIfArNumberExists(string arNo);
+        List<string> CheckIfArNumberExists(string arNo, int? excludeRequestId = null);
+
+        List<AwrItemQueueDto> GetAuditItemsPaged(int page, int size, out int total);
 
         // --- Submission ---
         Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNo);

@@ -61,7 +61,7 @@ namespace Awr.WpfUI.ViewModels
             try
             {
                 // Run on bg thread
-                List<string> duplicates = await Task.Run(() => Service.CheckIfArNumberExists(SelectedItem.ArNo.Trim()));
+                List<string> duplicates = await Task.Run(() => Service.CheckIfArNumberExists(SelectedItem.ArNo.Trim(), SelectedItem.RequestId));
 
                 if (duplicates.Any())
                 {

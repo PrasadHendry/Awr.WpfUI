@@ -149,7 +149,7 @@ namespace Awr.WpfUI.ViewModels
             try
             {
                 // 1. Check Duplicate
-                List<string> duplicates = await Task.Run(() => _service.CheckIfArNumberExists(ArNo.Trim()));
+                List<string> duplicates = await Task.Run(() => _service.CheckIfArNumberExists(ArNo.Trim(), null));
 
                 if (duplicates.Any())
                 {

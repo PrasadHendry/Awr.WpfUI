@@ -3,105 +3,171 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using Awr.Core.DTOs;
 using Awr.Core.Enums;
+using Awr.WpfUI.MvvmCore;
 using Awr.WpfUI.ViewModels.Shared;
 
 namespace Awr.WpfUI.ViewModels
 {
     public class AuditTrailViewModel : WorkQueueViewModel
     {
-        // --- Filter Sources ---
-        public List<string> AwrTypes { get; }
-        public List<string> Statuses { get; }
-
-        // --- Filter Selections ---
-        private string _selectedType;
-        public string SelectedType
-        {
-            get => _selectedType;
-            set { if (SetProperty(ref _selectedType, value)) FilterData(); }
-        }
-
-        private string _selectedStatus;
-        public string SelectedStatus
-        {
-            get => _selectedStatus;
-            set { if (SetProperty(ref _selectedStatus, value)) FilterData(); }
-        }
+        // --- Search Fields ---
+        private string _searchArNo;
+        public string SearchArNo { get => _searchArNo; set { if (SetProperty(ref _searchArNo, value)) _ = LoadDataAsync(); } }
 
         private bool _showAll = true;
-        public bool ShowAll
+        public bool ShowAll { get => _showAll; set { if (SetProperty(ref _showAll, value)) _ = LoadDataAsync(); } }
+
+        // --- PAGING Logic ---
+        public int PageSize { get; } = 50;
+
+        private int _currentPage = 1;
+        public int CurrentPage
         {
-            get => _showAll;
-            set { if (SetProperty(ref _showAll, value)) FilterData(); }
+            get => _currentPage;
+            set { SetProperty(ref _currentPage, value); CommandManager.InvalidateRequerySuggested(); }
         }
+
+        private int _totalPages = 1;
+        public int TotalPages { get => _totalPages; set => SetProperty(ref _totalPages, value); }
+
+        private bool _isPagingEnabled = true;
+        public bool IsPagingEnabled { get => _isPagingEnabled; set => SetProperty(ref _isPagingEnabled, value); }
+
+        // --- Status Logic ---
+        public class StatusOption { public string Value { get; set; } public string Display { get; set; } }
+        public ObservableCollection<StatusOption> StatusOptions { get; } = new ObservableCollection<StatusOption>();
+
+        private StatusOption _selectedStatusOption;
+        public StatusOption SelectedStatusOption
+        {
+            get => _selectedStatusOption;
+            set { if (SetProperty(ref _selectedStatusOption, value)) _ = LoadDataAsync(); }
+        }
+
+        // --- Count Logic (Moved from Base if needed, or using Base TotalRecords) ---
+        // Note: WorkQueueViewModel usually has 'Items', but we added 'TotalRecords' recently.
+        private int _totalRecords;
+        public int TotalRecords { get => _totalRecords; set => SetProperty(ref _totalRecords, value); }
+
+        public ICommand NextPageCommand { get; }
+        public ICommand PrevPageCommand { get; }
 
         public AuditTrailViewModel(string username) : base(username)
         {
-            // Initialize Filter Lists
-            AwrTypes = new List<string> { "--- All Types ---" };
-            AwrTypes.AddRange(Enum.GetNames(typeof(AwrType)));
-
-            // FIX: Exclude Draft and Complete from the UI Dropdown
-            Statuses = new List<string> { "--- All Statuses ---" };
-            foreach (var statusName in Enum.GetNames(typeof(AwrItemStatus)))
+            // Init Statuses
+            StatusOptions.Add(new StatusOption { Value = "All", Display = "--- All Statuses ---" });
+            foreach (AwrItemStatus s in Enum.GetValues(typeof(AwrItemStatus)))
             {
-                if (statusName != "Draft" && statusName != "Complete")
+                if (s == AwrItemStatus.Draft || s == AwrItemStatus.Complete) continue;
+                string display = s.ToString();
+                switch (s)
                 {
-                    Statuses.Add(statusName);
+                    case AwrItemStatus.PendingIssuance: display = "Pending Approval"; break;
+                    case AwrItemStatus.Issued: display = "Approved"; break;
+                    case AwrItemStatus.Received: display = "Completed"; break;
+                    case AwrItemStatus.Voided: display = "Voided"; break;
+                    case AwrItemStatus.RejectedByQa: display = "Rejected"; break;
                 }
+                StatusOptions.Add(new StatusOption { Value = s.ToString(), Display = display });
             }
+            SelectedStatusOption = StatusOptions[0];
 
-            // Defaults
-            _selectedType = AwrTypes[0];
-            _selectedStatus = Statuses[0];
+            NextPageCommand = new RelayCommand(async _ => { CurrentPage++; await LoadDataAsync(); }, _ => IsPagingEnabled && CurrentPage < TotalPages);
+            PrevPageCommand = new RelayCommand(async _ => { CurrentPage--; await LoadDataAsync(); }, _ => IsPagingEnabled && CurrentPage > 1);
         }
 
-        // Fetch ALL data from DB once, then filter in memory for speed
         protected override async Task<List<AwrItemQueueDto>> FetchDataInternalAsync()
         {
-            return await Service.GetAllAuditItemsAsync();
+            bool hasFilters = !string.IsNullOrEmpty(SearchText)
+                           || !string.IsNullOrEmpty(SearchArNo)
+                           || (SelectedStatusOption != null && SelectedStatusOption.Value != "All")
+                           || !ShowAll;
+
+            if (hasFilters)
+            {
+                // MODE: Filtering (Load All)
+                IsPagingEnabled = false;
+                CurrentPage = 1;
+                TotalPages = 1;
+
+                var allData = await Service.GetAllAuditItemsAsync();
+
+                // Note: TotalRecords will be updated in FilterData() after filtering logic runs
+                return allData;
+            }
+            else
+            {
+                // MODE: Paging (DB Side)
+                IsPagingEnabled = true;
+                return await Task.Run(() =>
+                {
+                    int total;
+                    var list = Service.GetAuditItemsPaged(CurrentPage, PageSize, out total);
+
+                    // Update Paging Stats
+                    TotalRecords = total;
+                    TotalPages = (int)Math.Ceiling((double)total / PageSize);
+                    if (TotalPages < 1) TotalPages = 1;
+
+                    return list;
+                });
+            }
         }
 
-        // Override the Base FilterData to include specific dropdown logic
         protected override void FilterData()
         {
             if (AllItems == null) return;
 
-            var query = AllItems.AsEnumerable();
-
-            // 1. Text Search
-            if (!string.IsNullOrWhiteSpace(SearchText))
+            if (IsPagingEnabled)
             {
-                string lower = SearchText.ToLower();
-                query = query.Where(i =>
-                    (i.RequestNo?.ToLower().Contains(lower) ?? false) ||
-                    (i.AwrNo?.ToLower().Contains(lower) ?? false) ||
-                    (i.MaterialProduct?.ToLower().Contains(lower) ?? false) ||
-                    (i.BatchNo?.ToLower().Contains(lower) ?? false)
-                );
+                // Paging Mode: Just show data. Count was already set in FetchData.
+                Items = new ObservableCollection<AwrItemQueueDto>(AllItems);
             }
-
-            // 2. Type Filter
-            if (SelectedType != "--- All Types ---")
+            else
             {
-                query = query.Where(i => i.AwrType.ToString() == SelectedType);
-            }
+                // Filter Mode: Filter In-Memory
+                var query = AllItems.AsEnumerable();
 
-            // 3. Status Filter
-            if (SelectedStatus != "--- All Statuses ---")
-            {
-                query = query.Where(i => i.Status.ToString() == SelectedStatus);
-            }
+                if (!string.IsNullOrWhiteSpace(SearchText))
+                {
+                    string lower = SearchText.ToLower();
+                    query = query.Where(i =>
+                        (i.RequestNo?.ToLower().Contains(lower) ?? false) ||
+                        (i.MaterialProduct?.ToLower().Contains(lower) ?? false) ||
+                        (i.BatchNo?.ToLower().Contains(lower) ?? false) ||
+                        (i.AwrNo?.ToLower().Contains(lower) ?? false)
+                    );
+                }
 
-            // 4. "My Requests Only"
-            if (!ShowAll)
-            {
-                query = query.Where(i => string.Equals(i.RequestedBy, Username, StringComparison.OrdinalIgnoreCase));
-            }
+                if (!string.IsNullOrWhiteSpace(SearchArNo))
+                {
+                    var tokens = SearchArNo.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().ToLower());
+                    query = query.Where(i =>
+                    {
+                        string dbAr = i.ArNo?.ToLower() ?? "";
+                        return tokens.Any(token => dbAr.Contains(token));
+                    });
+                }
 
-            Items = new ObservableCollection<AwrItemQueueDto>(query);
+                if (SelectedStatusOption != null && SelectedStatusOption.Value != "All")
+                {
+                    query = query.Where(i => i.Status.ToString() == SelectedStatusOption.Value);
+                }
+
+                if (!ShowAll)
+                {
+                    query = query.Where(i => string.Equals(i.RequestedBy, Username, StringComparison.OrdinalIgnoreCase));
+                }
+
+                var filteredList = query.ToList();
+                Items = new ObservableCollection<AwrItemQueueDto>(filteredList);
+
+                // FIX: Update Count based on Filtered Result
+                TotalRecords = filteredList.Count;
+            }
         }
     }
 }

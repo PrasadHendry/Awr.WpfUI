@@ -8,13 +8,15 @@ namespace Awr.Core.Interfaces
     public interface IAwrRequestRepository
     {
         string GetNextRequestNumberSequenceValue();
-        List<string> CheckIfArNumberExists(string arNo);
+        List<string> CheckIfArNumberExists(string arNo, int? excludeRequestId = null);
 
         int SubmitNewAwrRequest(IDbConnection connection, IDbTransaction transaction, string requestNo, AwrRequestSubmissionDto requestDto, string preparedByUsername);
 
         void InsertAwrRequestItems(IDbConnection connection, IDbTransaction transaction, int awrRequestId, List<AwrItemSubmissionDto> items);
 
         List<AwrItemQueueDto> GetAllAuditItems();
+
+        List<AwrItemQueueDto> GetAuditItemsPaged(int pageNumber, int pageSize, out int totalRecords);
 
         List<AwrItemQueueDto> GetItemsForIssuanceQueue();
         List<AwrItemQueueDto> GetItemsForReceiptQueue(string requesterUsername);
