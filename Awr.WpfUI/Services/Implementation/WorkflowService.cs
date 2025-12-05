@@ -38,9 +38,13 @@ namespace Awr.WpfUI.Services.Implementation
         {
             return _repository.GetNextRequestNumberSequenceValue();
         }
+        public List<string> CheckIfArNumberExists(string arNo)
+        {
+            return _repository.CheckIfArNumberExists(arNo);
+        }
 
         // --- Submission ---
-        public async Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNo)
+        public async Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNoPlaceholder)
         {
             return await Task.Run(() =>
             {
@@ -51,14 +55,24 @@ namespace Awr.WpfUI.Services.Implementation
                     {
                         try
                         {
-                            _repository.SubmitNewAwrRequest(connection, transaction, requestNo, requestDto, preparedByUsername);
+                            // 1. GENERATE ID (Inside Transaction)
+                            string seq = _repository.GetNextRequestNumberSequenceValue();
+                            string finalRequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-{seq}";
+
+                            // 2. Insert Header
+                            _repository.SubmitNewAwrRequest(connection, transaction, finalRequestNo, requestDto, preparedByUsername);
+
+                            // 3. Get New ID
                             const string getIdSql = "SELECT Id FROM dbo.AwrRequest WHERE RequestNo = @RequestNo";
-                            int newRequestId = connection.QuerySingle<int>(getIdSql, new { RequestNo = requestNo }, transaction: transaction);
+                            int newRequestId = connection.QuerySingle<int>(getIdSql, new { RequestNo = finalRequestNo }, transaction: transaction);
+
+                            // 4. Insert Items
                             _repository.InsertAwrRequestItems(connection, transaction, newRequestId, requestDto.Items);
+
                             transaction.Commit();
-                            return requestNo;
+                            return finalRequestNo; // Return the ACTUAL ID generated
                         }
-                        catch (Exception)
+                        catch
                         {
                             transaction.Rollback();
                             throw;

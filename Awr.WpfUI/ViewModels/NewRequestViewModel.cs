@@ -146,18 +146,28 @@ namespace Awr.WpfUI.ViewModels
             if (!ValidateForm()) return;
 
             IsBusy = true;
-            StatusMessage = "Submitting...";
-
             try
             {
-                // FIX: Generate Sequence ID *Here* (Just-in-Time)
-                // This ensures we only consume a number if validation passed and user clicked Submit.
-                string seq = _service.GetNextRequestNumberSequenceValue();
-                string generatedRequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-{seq}";
+                // 1. Check Duplicate
+                List<string> duplicates = await Task.Run(() => _service.CheckIfArNumberExists(ArNo.Trim()));
 
-                // Update UI immediately so user sees what is being processed
-                RequestNo = generatedRequestNo;
+                if (duplicates.Any())
+                {
+                    string msg = "WARNING: The AR Number(s) are active in previous requests:\n\n";
+                    msg += string.Join("\n", duplicates.Take(10));
+                    if (duplicates.Count > 10) msg += "\n...";
+                    msg += "\n\nContinue?";
 
+                    if (MessageBox.Show(msg, "Duplicate", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+                    {
+                        IsBusy = false;
+                        return;
+                    }
+                }
+
+                StatusMessage = "Submitting...";
+
+                // 2. Submit (Service generates ID now)
                 var dto = new AwrRequestSubmissionDto
                 {
                     Type = SelectedType,
@@ -168,13 +178,16 @@ namespace Awr.WpfUI.ViewModels
                     }
                 };
 
-                await _service.SubmitNewRequestAsync(dto, _username, generatedRequestNo);
+                // Pass "AUTO" or null, we get back the real ID
+                string finalId = await _service.SubmitNewRequestAsync(dto, _username, "AUTO");
 
-                MessageBox.Show($"Request Created Successfully!\n\nID: {generatedRequestNo}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Request Created Successfully!\n\nID: {finalId}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
+                // Update UI to show the ID we just made
+                RequestNo = finalId;
                 ClearForm();
-                // Reset placeholder for next one
-                ResetFormState();
+                // Reset placeholder
+                RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-####";
             }
             catch (Exception ex)
             {

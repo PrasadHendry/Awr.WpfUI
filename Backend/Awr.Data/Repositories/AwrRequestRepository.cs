@@ -31,6 +31,54 @@ namespace Awr.Data.Repositories
             }
         }
 
+        // Changed return type to List<string>
+        public List<string> CheckIfArNumberExists(string arNoInput)
+        {
+            var matches = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(arNoInput)) return matches;
+
+            var inputList = arNoInput.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                                     .Select(x => x.Trim())
+                                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                                     .ToList();
+
+            if (!inputList.Any()) return matches;
+
+            // Updated Query to fetch Status too for better context
+            const string sql = @"
+                SELECT r.RequestNo, i.ArNo, i.Status 
+                FROM dbo.AwrRequestItem i
+                JOIN dbo.AwrRequest r ON i.AwrRequestId = r.Id
+                WHERE i.Status IN ('Issued', 'InUse', 'PendingIssuance')
+                ORDER BY r.RequestedAt DESC"; // <--- ADDED SORTING
+
+            using (var connection = GetConnection())
+            {
+                var activeRequests = connection.Query<dynamic>(sql).ToList();
+
+                foreach (var inputAr in inputList)
+                {
+                    foreach (var row in activeRequests)
+                    {
+                        string dbArString = (string)row.ArNo;
+                        if (string.IsNullOrEmpty(dbArString)) continue;
+
+                        var dbArList = dbArString.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                                                 .Select(x => x.Trim());
+
+                        if (dbArList.Contains(inputAr, StringComparer.OrdinalIgnoreCase))
+                        {
+                            // Format: "AR-123 (In AWR-2025... [Status])"
+                            matches.Add($"AR '{inputAr}' found in {row.RequestNo} [{row.Status}]");
+                        }
+                    }
+                }
+            }
+
+            return matches.Distinct().ToList();
+        }
+
         public int SubmitNewAwrRequest(IDbConnection connection, IDbTransaction transaction, string requestNo, AwrRequestSubmissionDto requestDto, string preparedByUsername)
         {
             string awrNo = requestDto.Items.First().AwrNo;

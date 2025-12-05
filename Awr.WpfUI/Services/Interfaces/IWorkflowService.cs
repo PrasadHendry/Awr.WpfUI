@@ -8,6 +8,8 @@ namespace Awr.WpfUI.Services.Interfaces
     {
         // --- Sequence Generation ---
         string GetNextRequestNumberSequenceValue();
+        // NEW: Duplicate Check
+        List<string> CheckIfArNumberExists(string arNo);
 
         // --- Submission ---
         Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNo);

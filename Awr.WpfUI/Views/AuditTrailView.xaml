@@ -10,6 +10,7 @@
 
     <UserControl.Resources>
         <conv:InverseBooleanConverter x:Key="InverseBoolToBool"/>
+        <conv:EnumToDisplayStringConverter x:Key="EnumToString"/>
 
         <!-- 1. TEXT WRAPPING STYLE FOR COLUMNS -->
         <Style x:Key="WrappedColumnStyle" TargetType="TextBlock">
@@ -135,7 +136,7 @@
                 <DataGridTextColumn Header="AR No." Binding="{Binding ArNo}" Width="120" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                 <DataGridTextColumn Header="Qty Issued" Binding="{Binding QtyIssued, StringFormat=0}" Width="80" ElementStyle="{StaticResource WrappedColumnStyle}"/>
 
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="130">
+                <DataGridTextColumn Header="Status" Binding="{Binding Status, Converter={StaticResource EnumToString}}" Width="130">
                     <DataGridTextColumn.ElementStyle>
                         <Style TargetType="TextBlock" BasedOn="{StaticResource WrappedColumnStyle}">
                             <Setter Property="FontWeight" Value="Bold"/>

@@ -8,6 +8,7 @@ namespace Awr.Core.Interfaces
     public interface IAwrRequestRepository
     {
         string GetNextRequestNumberSequenceValue();
+        List<string> CheckIfArNumberExists(string arNo);
 
         int SubmitNewAwrRequest(IDbConnection connection, IDbTransaction transaction, string requestNo, AwrRequestSubmissionDto requestDto, string preparedByUsername);
 

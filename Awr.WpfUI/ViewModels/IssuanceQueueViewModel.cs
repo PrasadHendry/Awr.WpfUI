@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Awr.Core.DTOs;
+using Awr.WpfUI.MvvmCore;
+using Awr.WpfUI.ViewModels.Shared;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Awr.Core.DTOs;
-using Awr.WpfUI.MvvmCore;
-using Awr.WpfUI.ViewModels.Shared;
 
 namespace Awr.WpfUI.ViewModels
 {
@@ -55,33 +56,58 @@ namespace Awr.WpfUI.ViewModels
         {
             if (SelectedItem == null) return;
 
-            string confirmMsg = $"Approve Request {SelectedItem.RequestNo}?";
+            // 1. CHECK DUPLICATE AR
+            IsBusy = true;
+            try
+            {
+                // Run on bg thread
+                List<string> duplicates = await Task.Run(() => Service.CheckIfArNumberExists(SelectedItem.ArNo.Trim()));
 
-            // Show Quantity in confirmation if > 1
+                if (duplicates.Any())
+                {
+                    string msg = "WARNING: Duplicate AR Number(s) found:\n\n";
+                    msg += string.Join("\n", duplicates.Take(10));
+                    msg += "\n\nDo you want to Approve anyway?";
+
+                    if (MessageBox.Show(msg, "Duplicate", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+                    {
+                        IsBusy = false;
+                        StatusMessage = "Cancelled";
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Duplicate check failed: " + ex.Message);
+                IsBusy = false;
+                return;
+            }
+
+            // 2. STANDARD CONFIRMATION
+            string confirmMsg = $"Approve Request {SelectedItem.RequestNo}?";
             if (SelectedItem.QtyRequired > 1)
             {
                 confirmMsg += $"\n\nQuantity to Issue: {SelectedItem.QtyRequired:0}";
             }
 
             if (MessageBox.Show(confirmMsg, "Confirm Approval", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.No)
+            {
+                IsBusy = false;
                 return;
+            }
 
-            IsBusy = true;
+            // 3. EXECUTE APPROVAL
             StatusMessage = "Generating Document...";
-
             try
             {
-                // CHANGE: Pass QtyRequired as the QtyIssued value
-                // Ideally, we could add an input box to let QA change this, 
-                // but standard flow is Issue = Request.
                 await Service.IssueItemAsync(SelectedItem.ItemId, SelectedItem.QtyRequired, Username);
-
-                MessageBox.Show($"Request approved.", "Success", MessageBoxButton.OK, MessageBoxImage.Asterisk);
+                MessageBox.Show($"Request approved.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                 await LoadDataAsync();
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Approval Failed: {ex.Message}\n\nEnsure the Worker executable is present.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Approval Failed: {ex.Message}\n\nEnsure Worker is present.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {

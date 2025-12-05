@@ -69,7 +69,7 @@
 
                 <!-- Row 1 -->
                 <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
-                    Request No <Run Text="*" Foreground="Red"/> :
+                    Request No. <Run Text="*" Foreground="Red"/> :
                 </TextBlock>
                 <TextBox Text="{Binding RequestNo}" IsReadOnly="True" Background="#E9ECEF" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
 
@@ -80,23 +80,34 @@
 
                 <!-- Row 2 -->
                 <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
-                    Material <Run Text="*" Foreground="Red"/> :
+                    Material/Product <Run Text="*" Foreground="Red"/> :
                 </TextBlock>
                 <TextBox Text="{Binding MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
 
                 <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
-                    Batch <Run Text="*" Foreground="Red"/> :
+                    Batch No. <Run Text="*" Foreground="Red"/> :
                 </TextBlock>
                 <TextBox Text="{Binding BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
 
                 <!-- Row 3 -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
-                    AR No <Run Text="*" Foreground="Red"/> :
+                <TextBlock Text="AR No." Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0">
+                 <Run Text="*" Foreground="Red"/> :
                 </TextBlock>
-                <TextBox Text="{Binding ArNo}" Grid.Row="2" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
+
+                <!-- Taller, Multiline AR No Input -->
+                <TextBox Text="{Binding ArNo}" 
+                         Tag="{Binding IsArError}" 
+                         Grid.Row="2" Grid.Column="1" 
+                         Style="{StaticResource FormInputStyle}"
+                         Height="NaN" 
+                         TextWrapping="Wrap" 
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         VerticalContentAlignment="Top"
+                         Padding="5" Margin="0,0,20,0"/>
 
                 <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
-                    AWR No <Run Text="*" Foreground="Red"/> :
+                    AWR No. <Run Text="*" Foreground="Red"/> :
                 </TextBlock>
 
                 <!-- SEARCHABLE COMBOBOX FIX -->
@@ -109,7 +120,9 @@
                           Style="{StaticResource FormComboStyle}"/>
 
                 <!-- Row 4: Qty -->
-                <TextBlock Text="Qty Required:" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}"/>
+                <TextBlock Text="Qty Required " Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
+                <Run Text="*" Foreground="Red"/> :
+                </TextBlock>
 
                 <Grid Grid.Row="3" Grid.Column="1" Height="30" Margin="0,0,20,0">
                     <Grid.ColumnDefinitions>
