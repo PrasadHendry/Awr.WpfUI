@@ -10,14 +10,22 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- TEXT WRAPPING STYLE -->
-        <Style x:Key="WrappedColumnStyle" TargetType="TextBlock">
+        <!-- STYLES -->
+        <Style x:Key="LeftAlignedStyle" TargetType="TextBlock">
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Padding" Value="2,5"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="5,2"/>
         </Style>
 
-        <!-- OTHER STYLES (Same as before) -->
+        <Style x:Key="CenterAlignedStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="5,2"/>
+        </Style>
+
         <Style TargetType="TextBlock" x:Key="DetailLabelStyle">
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="HorizontalAlignment" Value="Right"/>
@@ -25,6 +33,7 @@
             <Setter Property="Foreground" Value="#888"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
+
         <Style TargetType="TextBox" x:Key="DetailInputStyle">
             <Setter Property="Height" Value="28"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -36,6 +45,7 @@
             <Setter Property="Foreground" Value="#333"/>
             <Setter Property="BorderBrush" Value="#DDD"/>
         </Style>
+
         <Style TargetType="DataGridColumnHeader">
             <Setter Property="Background" Value="#41546E"/>
             <Setter Property="Foreground" Value="White"/>
@@ -43,20 +53,24 @@
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="BorderBrush" Value="#667D97"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <!-- Center Headers -->
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="15">
+    <Grid Margin="15" x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Header -->
             <RowDefinition Height="*"/>
-            <!-- Grid stretches here -->
+            <!-- Grid -->
             <RowDefinition Height="Auto"/>
+            <!-- Details -->
             <RowDefinition Height="Auto"/>
+            <!-- Actions -->
         </Grid.RowDefinitions>
 
-        <!-- 1. HEADER (Unchanged) -->
+        <!-- 1. HEADER -->
         <Grid Margin="0,0,0,10">
             <TextBlock Text="Pending Issuance" FontSize="16" FontWeight="Bold" Foreground="#333" VerticalAlignment="Bottom"/>
             <Button Content="Refresh" Command="{Binding RefreshCommand}" Background="#007BFF" Foreground="White" FontWeight="Bold" BorderThickness="0" Width="100" Height="30" HorizontalAlignment="Right">
@@ -68,35 +82,41 @@
             </Button>
         </Grid>
 
-        <!-- 2. MASTER GRID (FIXED LAYOUT) -->
+        <!-- 2. MASTER GRID -->
+        <!-- Bound MaxWidth to Window to enforce Scrollbars -->
         <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                  MaxWidth="{Binding ActualWidth, ElementName=RootGrid}"
                   AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                   HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                   ScrollViewer.HorizontalScrollBarVisibility="Visible" 
                   ScrollViewer.VerticalScrollBarVisibility="Visible"
-                  BorderBrush="#CCC" BorderThickness="1" Background="White" 
-                  RowHeight="40" FrozenColumnCount="2">
-            <!-- Frozen + Taller Rows -->
+                  BorderBrush="#CCC" BorderThickness="1" Background="White" RowHeight="40">
 
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="160" FontWeight="Bold" ElementStyle="{StaticResource WrappedColumnStyle}"/>
-                <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="160" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                <!-- Request No (Center) -->
+                <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="160" FontWeight="Bold" ElementStyle="{StaticResource CenterAlignedStyle}"/>
 
-                <!-- NEW COLUMN -->
-                <DataGridTextColumn Header="Qty Required" Binding="{Binding QtyRequired, StringFormat=0}" Width="160" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                <!-- AWR No (Left - Excluded) -->
+                <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="160" ElementStyle="{StaticResource LeftAlignedStyle}"/>
 
-                <DataGridTextColumn Header="Prepared By (QC)" Binding="{Binding RequestedBy}" Width="200" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                <!-- Qty (Center) -->
+                <DataGridTextColumn Header="Qty Required" Binding="{Binding QtyRequired, StringFormat=0}" Width="120" ElementStyle="{StaticResource CenterAlignedStyle}"/>
+
+                <!-- QC (Center) -->
+                <DataGridTextColumn Header="Prepared By (QC)" Binding="{Binding RequestedBy}" Width="200" ElementStyle="{StaticResource CenterAlignedStyle}"/>
+
+                <!-- Date (Center) -->
                 <DataGridTemplateColumn Header="Date" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding RequestedAt, StringFormat=dd-MM-yyyy HH:mm}" TextWrapping="Wrap" Padding="2,5" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding RequestedAt, StringFormat=dd-MM-yyyy HH:mm}" TextWrapping="Wrap" Padding="2,5" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
 
-        <!-- 3. DETAILS PANEL (Unchanged) -->
+        <!-- 3. DETAILS PANEL (REFINED) -->
         <GroupBox Grid.Row="2" Header="Details" Margin="0,15,0,0" FontSize="13" FontWeight="Bold" Foreground="#666" BorderBrush="#DDD" Background="White">
             <Grid Margin="15,15,15,5">
                 <Grid.ColumnDefinitions>
@@ -111,38 +131,79 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
+
+                <!-- Row 1 -->
                 <TextBlock Text="Request No:" Grid.Row="0" Grid.Column="0" Style="{StaticResource DetailLabelStyle}"/>
                 <TextBox Text="{Binding SelectedItem.RequestNo}" Grid.Row="0" Grid.Column="1" Style="{StaticResource DetailInputStyle}"/>
+
                 <TextBlock Text="Requested By:" Grid.Row="0" Grid.Column="2" Style="{StaticResource DetailLabelStyle}"/>
                 <TextBox Text="{Binding SelectedItem.RequestedBy}" Grid.Row="0" Grid.Column="3" Style="{StaticResource DetailInputStyle}"/>
+
+                <!-- Row 2 -->
                 <TextBlock Text="Material/Product:" Grid.Row="1" Grid.Column="0" Style="{StaticResource DetailLabelStyle}"/>
                 <TextBox Text="{Binding SelectedItem.MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource DetailInputStyle}"/>
+
                 <TextBlock Text="Batch No:" Grid.Row="1" Grid.Column="2" Style="{StaticResource DetailLabelStyle}"/>
                 <TextBox Text="{Binding SelectedItem.BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource DetailInputStyle}"/>
+
+                <!-- Row 3 -->
                 <TextBlock Text="AWR Type:" Grid.Row="2" Grid.Column="0" Style="{StaticResource DetailLabelStyle}"/>
                 <TextBox Text="{Binding SelectedItem.AwrType}" Grid.Row="2" Grid.Column="1" Style="{StaticResource DetailInputStyle}"/>
-                <TextBlock Text="AR No:" Grid.Row="2" Grid.Column="2" Style="{StaticResource DetailLabelStyle}"/>
-                <TextBox Text="{Binding SelectedItem.ArNo}" Grid.Row="2" Grid.Column="3" Style="{StaticResource DetailInputStyle}"/>
+
+                <!-- AR No: Increased Height (2 Rows approx) + Top Alignment -->
+                <TextBlock Text="AR No:" Grid.Row="2" Grid.Column="2" Style="{StaticResource DetailLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0"/>
+                <TextBox Text="{Binding SelectedItem.ArNo}" Grid.Row="2" Grid.Column="3" 
+                         Height="50" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" 
+                         Style="{StaticResource DetailInputStyle}" VerticalContentAlignment="Top"/>
+
+                <!-- Row 4: Comment -->
                 <TextBlock Text="Requester Comment:" Grid.Row="3" Grid.Column="0" Style="{StaticResource DetailLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0"/>
-                <TextBox Text="{Binding SelectedItem.RequestComment}" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Height="60" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsReadOnly="True" Background="#F9F9F9" Foreground="#555" Padding="5" BorderBrush="#DDD" Margin="0,0,0,10"/>
+
+                <!-- Comment Box: Constrained Width (Using Column Span 3 but with Margin or MaxWidth if needed) -->
+                <!-- Currently fills remaining space. To 'reduce horizontally', we can add Right Margin. -->
+                <TextBox Text="{Binding SelectedItem.RequestComment}" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" 
+                         Height="60" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                         IsReadOnly="True" Background="#F9F9F9" Foreground="#555" Padding="5" BorderBrush="#DDD"
+                         Margin="0,0,50,10"/>
+                <!-- Added Right Margin 50 to reduce width slightly -->
             </Grid>
         </GroupBox>
 
-        <!-- 4. ACTIONS PANEL (Unchanged) -->
+        <!-- 4. ACTIONS PANEL -->
         <GroupBox Grid.Row="3" Header="Actions" Margin="0,15,0,0" FontSize="13" FontWeight="Bold" Foreground="#666" BorderBrush="#DDD" Background="White">
             <Grid Margin="15">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
+                    <!-- Comment -->
                     <ColumnDefinition Width="200"/>
+                    <!-- Buttons -->
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
+
                 <TextBlock Text="Rejection Reason (Required for Reject):" FontSize="12" Foreground="#888" Margin="0,0,0,5"/>
-                <TextBox Grid.Row="1" Text="{Binding RejectComment, UpdateSourceTrigger=PropertyChanged}" Height="65" TextWrapping="Wrap" AcceptsReturn="True" Padding="5" BorderBrush="#CCC"/>
+                <TextBox Grid.Row="1" Text="{Binding RejectComment, UpdateSourceTrigger=PropertyChanged}" 
+                         Tag="{Binding IsRejectError}" 
+                         Height="65" TextWrapping="Wrap" AcceptsReturn="True" Padding="5"
+                         BorderBrush="#CCC">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox">
+                            <Setter Property="BorderBrush" Value="#CCC"/>
+                            <Style.Triggers>
+                                <Trigger Property="Tag" Value="True">
+                                    <Setter Property="BorderBrush" Value="Red"/>
+                                    <Setter Property="BorderThickness" Value="2"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+
                 <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Margin="20,0,0,0" VerticalAlignment="Bottom">
-                    <Button Content="Approve (Generate)" Command="{Binding ApproveCommand}" Height="35" Margin="0,0,0,10" BorderThickness="0" FontWeight="Bold" Foreground="White">
+                    <Button Content="Approve (Generate)" Command="{Binding ApproveCommand}" 
+                            Height="35" Margin="0,0,0,10" BorderThickness="0" FontWeight="Bold" Foreground="White">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background" Value="#28A745"/>
@@ -159,7 +220,9 @@
                             </Style>
                         </Button.Resources>
                     </Button>
-                    <Button Content="Reject" Command="{Binding RejectCommand}" Height="35" BorderThickness="0" FontWeight="Bold" Foreground="White">
+
+                    <Button Content="Reject" Command="{Binding RejectCommand}" 
+                            Height="35" BorderThickness="0" FontWeight="Bold" Foreground="White">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background" Value="#DC3545"/>
