@@ -122,7 +122,7 @@ namespace Awr.WpfUI.ViewModels
                                          .Where(x => !string.IsNullOrWhiteSpace(x))
                                          .OrderBy(x => x).ToList();
                 }
-                else { _masterAwrList = new List<string> { "CSV_MISSING" }; }
+                else { _masterAwrList = new List<string> { "CSV_MISSING CONTACT IT DEPARTMENT" }; }
 
                 FilterAwrList();
             }
@@ -201,7 +201,7 @@ namespace Awr.WpfUI.ViewModels
         {
             var missingFields = new List<string>();
 
-            if (string.IsNullOrWhiteSpace(MaterialProduct)) { IsMaterialError = true; missingFields.Add("- Material"); }
+            if (string.IsNullOrWhiteSpace(MaterialProduct)) { IsMaterialError = true; missingFields.Add("- Material/Product"); }
             if (string.IsNullOrWhiteSpace(BatchNo)) { IsBatchError = true; missingFields.Add("- Batch No"); }
             if (string.IsNullOrWhiteSpace(ArNo)) { IsArError = true; missingFields.Add("- AR No"); }
             if (string.IsNullOrWhiteSpace(Comments)) { IsCommentError = true; missingFields.Add("- Comments"); }

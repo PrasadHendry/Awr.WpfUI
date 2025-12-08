@@ -3,8 +3,8 @@
     public static class WorkerConstants
     {
         // Paths
-        public const string SourceRoot = @"C:\AwrTest\AWR Issuance";
-        public const string TempLocation = @"C:\AwrTest\Working";
+        public const string SourceRoot = @"C:\AwrTest\AWR Issuance"; // AWR - DOC source folder
+        public const string TempLocation = @"C:\AwrTest\Working"; // TEMP working - folder for process isolation
         public const string FinalLocation = @"C:\AwrTest\FinalIssuedDocs"; // Where QA generated docs live
 
         // Security

@@ -39,145 +39,121 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- WRAPPER: Handles vertical overflow -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 
-        <!-- Title -->
-        <TextBlock Text="AWR REQUEST FORM: SOP-QA-003-F2" FontSize="14" Foreground="#555" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <!-- Title -->
+                <RowDefinition Height="Auto"/>
+                <!-- Request Details -->
+                <RowDefinition Height="Auto"/>
+                <!-- Comments (Changed from * to Auto) -->
+                <RowDefinition Height="Auto"/>
+                <!-- Footer -->
+            </Grid.RowDefinitions>
 
-        <!-- Details -->
-        <GroupBox Grid.Row="1" Header="Request Details" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
-            <Grid Margin="20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="130"/>
-                    <!-- Increased width for labels -->
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="130"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="45"/>
-                    <RowDefinition Height="45"/>
-                    <RowDefinition Height="45"/>
-                    <RowDefinition Height="45"/>
-                </Grid.RowDefinitions>
+            <!-- 1. Title -->
+            <TextBlock Text="AWR REQUEST FORM: SOP-QA-003-F2" FontSize="14" Foreground="#555" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
-                <!-- Row 1 -->
-                <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
-                    Request No. <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-                <TextBox Text="{Binding RequestNo}" IsReadOnly="True" Background="#E9ECEF" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-
-                <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
-                    Type <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-                <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding AwrTypes}" SelectedItem="{Binding SelectedType}" Style="{StaticResource FormComboStyle}"/>
-
-                <!-- Row 2 -->
-                <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
-                    Material/Product <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-                <TextBox Text="{Binding MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
-
-                <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
-                    Batch No. <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-                <TextBox Text="{Binding BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
-
-                <!-- Row 3 -->
-                <TextBlock Text="AR No." Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0">
-                 <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-
-                <!-- Taller, Multiline AR No Input -->
-                <TextBox Text="{Binding ArNo}" 
-                         Tag="{Binding IsArError}" 
-                         Grid.Row="2" Grid.Column="1" 
-                         Style="{StaticResource FormInputStyle}"
-                         Height="NaN" 
-                         TextWrapping="Wrap" 
-                         AcceptsReturn="True"
-                         VerticalScrollBarVisibility="Auto"
-                         VerticalContentAlignment="Top"
-                         Padding="5" Margin="0,0,20,0"/>
-
-                <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabelStyle}">
-                    AWR No. <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-
-                <!-- SEARCHABLE COMBOBOX FIX -->
-                <ComboBox Grid.Row="2" Grid.Column="3" 
-                          ItemsSource="{Binding FilteredAwrNumbers}" 
-                          Text="{Binding AwrNo, UpdateSourceTrigger=PropertyChanged}"
-                          IsEditable="True"
-                          IsTextSearchEnabled="False"
-                          StaysOpenOnEdit="True"
-                          Style="{StaticResource FormComboStyle}"/>
-
-                <!-- Row 4: Qty -->
-                <TextBlock Text="Qty Required " Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}">
-                <Run Text="*" Foreground="Red"/> :
-                </TextBlock>
-
-                <Grid Grid.Row="3" Grid.Column="1" Height="30" Margin="0,0,20,0">
+            <!-- 2. Details -->
+            <GroupBox Grid.Row="1" Header="Request Details" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
+                <Grid Margin="20">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="30"/>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="45"/>
+                        <RowDefinition Height="45"/>
+                        <RowDefinition Height="Auto"/>
+                        <!-- AR No / AWR No Row (Auto for tall text box) -->
+                        <RowDefinition Height="45"/>
+                    </Grid.RowDefinitions>
 
-                    <TextBox Text="{Binding QtyRequired}" IsEnabled="{Binding IsQtyEnabled}" 
-                             Style="{StaticResource FormInputStyle}" Margin="0" 
-                             HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0"/>
+                    <!-- Row 1 -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource FormLabelStyle}">Request No. <Run Text="*" Foreground="Red"/> :</TextBlock>
+                    <TextBox Text="{Binding RequestNo}" IsReadOnly="True" Background="#E9ECEF" Grid.Row="0" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
 
-                    <Grid Grid.Column="1" Margin="2,0,0,0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <Button Content="▲" FontSize="8" Padding="0" Margin="0,0,0,1" Command="{Binding IncrementQtyCommand}" IsEnabled="{Binding IsQtyEnabled}"/>
-                        <Button Content="▼" FontSize="8" Padding="0" Margin="0,1,0,0" Grid.Row="1" Command="{Binding DecrementQtyCommand}" IsEnabled="{Binding IsQtyEnabled}"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource FormLabelStyle}">Type <Run Text="*" Foreground="Red"/> :</TextBlock>
+                    <ComboBox Grid.Row="0" Grid.Column="3" ItemsSource="{Binding AwrTypes}" SelectedItem="{Binding SelectedType}" Style="{StaticResource FormComboStyle}"/>
+
+                    <!-- Row 2 -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource FormLabelStyle}">Material/Product <Run Text="*" Foreground="Red"/> :</TextBlock>
+                    <TextBox Text="{Binding MaterialProduct}" Grid.Row="1" Grid.Column="1" Style="{StaticResource FormInputStyle}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource FormLabelStyle}">Batch No. <Run Text="*" Foreground="Red"/> :</TextBlock>
+                    <TextBox Text="{Binding BatchNo}" Grid.Row="1" Grid.Column="3" Style="{StaticResource FormInputStyle}"/>
+
+                    <!-- Row 3 (Taller) -->
+                    <TextBlock Text="AR No.:" Grid.Row="2" Grid.Column="0" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0"><Run Text="*" Foreground="Red"/></TextBlock>
+
+                    <TextBox Text="{Binding ArNo}" Tag="{Binding IsArError}" Grid.Row="2" Grid.Column="1" 
+                             Style="{StaticResource FormInputStyle}" Height="60" TextWrapping="Wrap" AcceptsReturn="True" 
+                             VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" Padding="5"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource FormLabelStyle}" VerticalAlignment="Top" Margin="0,5,10,0">AWR No. <Run Text="*" Foreground="Red"/> :</TextBlock>
+
+                    <ComboBox Grid.Row="2" Grid.Column="3" ItemsSource="{Binding FilteredAwrNumbers}" Text="{Binding AwrNo, UpdateSourceTrigger=PropertyChanged}" 
+                              IsEditable="True" IsTextSearchEnabled="False" StaysOpenOnEdit="True" Style="{StaticResource FormComboStyle}" VerticalAlignment="Top"/>
+
+                    <!-- Row 4: Qty -->
+                    <TextBlock Text="Qty Required:" Grid.Row="3" Grid.Column="0" Style="{StaticResource FormLabelStyle}"><Run Text="*" Foreground="Red"/></TextBlock>
+                    <Grid Grid.Row="3" Grid.Column="1" Height="30" Margin="0,0,20,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="30"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding QtyRequired}" IsEnabled="{Binding IsQtyEnabled}" Style="{StaticResource FormInputStyle}" Margin="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Padding="0"/>
+                        <Grid Grid.Column="1" Margin="2,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Button Content="▲" FontSize="8" Padding="0" Margin="0,0,0,1" Command="{Binding IncrementQtyCommand}" IsEnabled="{Binding IsQtyEnabled}"/>
+                            <Button Content="▼" FontSize="8" Padding="0" Margin="0,1,0,0" Grid.Row="1" Command="{Binding DecrementQtyCommand}" IsEnabled="{Binding IsQtyEnabled}"/>
+                        </Grid>
                     </Grid>
                 </Grid>
-            </Grid>
-        </GroupBox>
+            </GroupBox>
 
-        <!-- Comments -->
-        <GroupBox Grid.Row="2" Header="Comments / Justification" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <TextBlock Text="* Required" Foreground="Red" FontSize="10" Margin="5,0,0,0"/>
-                <TextBox Grid.Row="1" Text="{Binding Comments}" Style="{StaticResource FormInputStyle}" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Height="NaN" Margin="5,10,5,10"/>
-            </Grid>
-        </GroupBox>
+            <!-- 3. Comments -->
+            <GroupBox Grid.Row="2" Header="Comments / Justification" FontSize="13" FontWeight="Bold" Margin="0,0,0,20" Background="White" BorderBrush="#CCC">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="* Required" Foreground="Red" FontSize="10" Margin="5,0,0,0"/>
+                    <!-- MinHeight set to ensure it's usable inside the ScrollViewer -->
+                    <TextBox Grid.Row="1" Text="{Binding Comments}" Style="{StaticResource FormInputStyle}" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" MinHeight="80" Margin="5,10,5,10"/>
+                </Grid>
+            </GroupBox>
 
-        <!-- Footer -->
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Status: " FontWeight="Bold" Foreground="#333"/>
-                <TextBlock Text="{Binding StatusMessage}" Foreground="#333"/>
-            </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <ProgressBar Width="100" Height="15" IsIndeterminate="True" Margin="0,0,15,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
-                <Button Content="Submit Request" Command="{Binding SubmitCommand}" Background="#28A745" Foreground="White" FontWeight="Bold" FontSize="13" Width="150" Height="35" BorderThickness="0">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="4"/>
-                        </Style>
-                    </Button.Resources>
-                </Button>
-            </StackPanel>
+            <!-- 4. Footer -->
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Status: " FontWeight="Bold" Foreground="#333"/>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="#333"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ProgressBar Width="100" Height="15" IsIndeterminate="True" Margin="0,0,15,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"/>
+                    <Button Content="Submit Request" Command="{Binding SubmitCommand}" Background="#28A745" Foreground="White" FontWeight="Bold" FontSize="13" Width="150" Height="35" BorderThickness="0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="4"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
+                </StackPanel>
+            </Grid>
         </Grid>
-    </Grid>
+    </ScrollViewer>
 </UserControl>
