@@ -142,7 +142,7 @@ namespace Awr.Data.Repositories
                 i.MaterialProduct, 
                 i.BatchNo,
                 ISNULL(i.ArNo, 'NA') AS ArNo,
-                ISNULL(i.QtyRequired, 0) AS QtyRequired, -- FIX: Default to 0
+                ISNULL(i.QtyRequired, 0) AS QtyRequired, 
                 CASE 
                     WHEN i.Status = 'InUse' THEN " + (int)AwrItemStatus.Received + @"
                     WHEN i.Status = 'PendingIssuance' THEN " + (int)AwrItemStatus.PendingIssuance + @"
@@ -156,15 +156,29 @@ namespace Awr.Data.Repositories
                 r.RequestNo, 
                 r.AwrNo, 
                 r.AwrType,
-                r.PreparedByUsername AS RequestedBy,
-                r.RequestedAt AS RequestedAt,
-                r.RequestComment,    
-                ISNULL(i.QtyIssued, 0) AS QtyIssued, -- FIX: Default to 0
-                ISNULL(i.IssuedByUsername, 'NA') AS IssuedBy,
-                i.IssuedAt,
-                ISNULL(i.ReceivedByUsername, 'NA') AS ReceivedBy,
+                
+                -- UPDATED: Combine Name + Date for all audit columns
+                
+                (r.PreparedByUsername + CHAR(13) + CHAR(10) + FORMAT(r.RequestedAt, '(dd-MM-yyyy HH:mm)')) AS RequestedBy,
+                
+                ISNULL(i.QtyIssued, 0) AS QtyIssued,
+                
+                CASE WHEN i.IssuedByUsername IS NULL THEN 'NA' 
+                     ELSE (i.IssuedByUsername + CHAR(13) + CHAR(10) + FORMAT(i.IssuedAt, '(dd-MM-yyyy HH:mm)')) 
+                END AS IssuedBy,
+                
+                i.IssuedAt, -- Keep raw date for sorting
+                
+                CASE WHEN i.ReceivedByUsername IS NULL THEN 'NA' 
+                     ELSE (i.ReceivedByUsername + CHAR(13) + CHAR(10) + FORMAT(i.ReceivedAt, '(dd-MM-yyyy HH:mm)')) 
+                END AS ReceivedBy,
+                
                 i.ReceivedAt,
-                ISNULL(i.ReturnedByUsername, 'NA') AS ReturnedBy,
+                
+                CASE WHEN i.ReturnedByUsername IS NULL THEN 'NA' 
+                     ELSE (i.ReturnedByUsername + CHAR(13) + CHAR(10) + FORMAT(i.ReturnedAt, '(dd-MM-yyyy HH:mm)')) 
+                END AS ReturnedBy,
+                
                 i.ReturnedAt,
                 ISNULL(i.Remark, 'NA') AS Remark
             FROM dbo.AwrRequestItem i

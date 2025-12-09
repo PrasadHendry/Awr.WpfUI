@@ -167,7 +167,6 @@ namespace Awr.WpfUI.ViewModels
 
                 StatusMessage = "Submitting...";
 
-                // 2. Submit (Service generates ID now)
                 var dto = new AwrRequestSubmissionDto
                 {
                     Type = SelectedType,
@@ -183,18 +182,22 @@ namespace Awr.WpfUI.ViewModels
 
                 MessageBox.Show($"Request Created Successfully!\n\nID: {finalId}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                // Update UI to show the ID we just made
+                // Success Path
                 RequestNo = finalId;
                 ClearForm();
-                // Reset placeholder
-                RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-####";
+                ResetFormState(); // Sets StatusMessage = "Ready for submission."
             }
             catch (Exception ex)
             {
-                StatusMessage = "Failed.";
+                StatusMessage = "Failed."; // Error Path
                 MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-            finally { IsBusy = false; }
+            finally
+            {
+                IsBusy = false;
+                // SAFETY: If we are still stuck on "Submitting...", force reset.
+                if (StatusMessage == "Submitting...") StatusMessage = "Ready for submission.";
+            }
         }
 
         private bool ValidateForm()

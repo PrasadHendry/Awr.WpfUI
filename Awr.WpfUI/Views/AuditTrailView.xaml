@@ -203,7 +203,7 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding IsPagingEnabled, Converter={StaticResource BoolToVis}}">
                 <Button Content="&lt; Prev" Command="{Binding PrevPageCommand}" Width="80" Height="30" Margin="0,0,10,0" Background="#DDD" BorderThickness="0"/>
-                <TextBlock VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"><Run Text="Page"/><Run Text="{Binding CurrentPage}"/><Run Text="of"/><Run Text="{Binding TotalPages}"/></TextBlock>
+                <TextBlock VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,10,0"><Run Text="Page "/><Run Text="{Binding CurrentPage}"/><Run Text=" of "/><Run Text="{Binding TotalPages}"/></TextBlock>
                 <Button Content="Next &gt;" Command="{Binding NextPageCommand}" Width="80" Height="30" Background="#DDD" BorderThickness="0"/>
             </StackPanel>
         </Grid>
