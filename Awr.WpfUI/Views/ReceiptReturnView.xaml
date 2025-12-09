@@ -66,8 +66,8 @@
             <!-- Adjusted for spaciousness: MinHeight=250 ensures ~5-6 rows visible -->
             <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
                       MaxWidth="{Binding ActualWidth, ElementName=RootGrid}"
-                      MaxHeight="500" 
-                      MinHeight="250"
+                      MaxHeight="700" 
+                      MinHeight="350"
                       AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                       HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                       ScrollViewer.HorizontalScrollBarVisibility="Visible"

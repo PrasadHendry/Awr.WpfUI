@@ -1,7 +1,8 @@
-﻿using System;
+﻿using Awr.WpfUI.MvvmCore;
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Input;
-using Awr.WpfUI.MvvmCore;
 
 namespace Awr.WpfUI.ViewModels
 {
@@ -31,7 +32,7 @@ namespace Awr.WpfUI.ViewModels
 
             var timer = new System.Windows.Threading.DispatcherTimer();
             timer.Interval = TimeSpan.FromSeconds(1);
-            timer.Tick += (s, e) => FooterTime = DateTime.Now.ToString("dd-MM-yyyy hh:mm tt");
+            timer.Tick += (s, e) => FooterTime = DateTime.Now.ToString("dd-MM-yyyy HH:mm tt");
             timer.Start();
 
             SignOutCommand = new RelayCommand(_ => OnSignOut());
@@ -41,8 +42,10 @@ namespace Awr.WpfUI.ViewModels
 
         private void ConfigureTabs(string role)
         {
+            // 1. Add Audit Trail (Always First)
             Tabs.Add(new TabItemViewModel("Audit Trail", new AuditTrailViewModel(_pcUsername)));
 
+            // 2. Add Role-Specific Tabs
             switch (role)
             {
                 case "Requester":
@@ -62,7 +65,26 @@ namespace Awr.WpfUI.ViewModels
                     break;
             }
 
-            if (Tabs.Count > 0) SelectedTab = Tabs[0];
+            // 3. Smart Tab Selection
+            if (Tabs.Count > 0)
+            {
+                // Default to Audit Trail
+                TabItemViewModel targetTab = Tabs[0];
+
+                // Override based on Workflow Priority
+                if (role == "Requester" || role == "Admin")
+                {
+                    var newReq = Tabs.FirstOrDefault(t => t.Header == "New Request");
+                    if (newReq != null) targetTab = newReq;
+                }
+                else if (role == "QA")
+                {
+                    var approval = Tabs.FirstOrDefault(t => t.Header == "Approval Queue");
+                    if (approval != null) targetTab = approval;
+                }
+
+                SelectedTab = targetTab;
+            }
         }
 
         private void OnSignOut()
