@@ -188,8 +188,17 @@ namespace Awr.Data.Repositories
 
         public List<AwrItemQueueDto> GetItemsForReceiptQueue(string requesterUsername)
         {
-            string sql = ItemQueueSelectSql + @"WHERE i.Status = 'Issued' AND r.PreparedByUsername = @Username ORDER BY r.RequestedAt DESC, i.Id;";
-            using (var connection = GetConnection()) return connection.Query<AwrItemQueueDto>(sql, new { Username = requesterUsername }).ToList();
+            // FIX: Removed 'AND r.PreparedByUsername = @Username' to allow shared visibility
+            // Any user with access to this tab can print any Issued document.
+            string sql = ItemQueueSelectSql +
+                         @"WHERE i.Status = 'Issued' 
+                           ORDER BY r.RequestedAt DESC, i.Id;";
+
+            using (var connection = GetConnection())
+            {
+                // We no longer need to pass the username parameter to the query
+                return connection.Query<AwrItemQueueDto>(sql).ToList();
+            }
         }
 
         public List<AwrItemQueueDto> GetItemsForReturnQueue(string requesterUsername)

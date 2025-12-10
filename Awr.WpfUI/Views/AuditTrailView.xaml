@@ -163,7 +163,7 @@
                 </DataGridTextColumn>
 
                 <!-- QC (User + Date) -->
-                <DataGridTemplateColumn Header="Prepared By (QC)" Width="140">
+                <DataGridTemplateColumn Header="Requested By (QC)" Width="140">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel VerticalAlignment="Center">

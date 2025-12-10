@@ -22,6 +22,7 @@ namespace Awr.Worker.DTOs
         public decimal QtyIssued { get; set; } // NEW (Decimal to match DB, cast to int for printing)
 
         // Audit Fields
+        public string RequestedByUsername { get; set; }
         public string IssuedByUsername { get; set; }
         public string PrintedByUsername { get; set; }
 

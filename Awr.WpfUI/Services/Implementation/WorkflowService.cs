@@ -154,9 +154,10 @@ namespace Awr.WpfUI.Services.Implementation
                 ItemId = itemId,
                 MaterialProduct = item.MaterialProduct,
                 BatchNo = item.BatchNo,
-                ArNo = item.ArNo, // NEW: Mapped
+                ArNo = item.ArNo,
                 AwrNo = request.AwrNo,
-                
+                RequestedByUsername = request.PreparedByUsername,
+
                 // NEW: Use QtyRequired (which is the approved qty) for the stamp/print logic
                 // If we are printing, QtyIssued in DB might be null if legacy, so fallback to QtyRequired
                 QtyIssued = item.QtyIssued.HasValue && item.QtyIssued > 0 ? item.QtyIssued.Value : item.QtyRequired,

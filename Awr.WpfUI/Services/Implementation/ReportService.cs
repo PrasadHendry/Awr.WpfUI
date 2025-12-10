@@ -46,7 +46,7 @@ namespace Awr.WpfUI.Services.Implementation
         // Shared Header List for Consistency
         private readonly string[] _headers = {
             "Request No.", "AWR No.", "Type", "Material/Product", "Batch No.", "AR No.",
-            "Qty Issued", "Status", "Prepared By (QC)", "Approved By (QA)", "Printed By (QC)", "Voided By (QC)", "Remark / Justification"
+            "Qty Issued", "Status", "Requested By (QC)", "Approved By (QA)", "Printed By (QC)", "Voided By (QC)", "Remark / Justification"
         };
 
         // ==========================================

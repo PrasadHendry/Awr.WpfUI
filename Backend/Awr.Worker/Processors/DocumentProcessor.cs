@@ -67,8 +67,8 @@ namespace Awr.Worker.Processors
                 // Stamp Header/Footer (Calibri 8pt)
                 foreach (Word.Section section in doc.Sections)
                 {
-                    section.PageSetup.HeaderDistance = 12f;
-                    section.PageSetup.FooterDistance = 12f;
+                    section.PageSetup.HeaderDistance = 24f; // 0.33 inch (Safe)
+                    section.PageSetup.FooterDistance = 24f;
 
                     var headerRange = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
                     headerRange.Text = _record.GetHeaderText();
@@ -144,35 +144,68 @@ namespace Awr.Worker.Processors
 
             try
             {
+                // FIX 1: Set Narrow Margins to maximize space
+                doc.PageSetup.TopMargin = 36;    // 0.5 inch
+                doc.PageSetup.BottomMargin = 36;
+                doc.PageSetup.LeftMargin = 36;
+                doc.PageSetup.RightMargin = 36;
+
                 var range = doc.Range();
 
-                // Title
-                range.Text = "AWR DOCUMENT ISSUANCE RECEIPT\n";
+                // 1. HEADER (Compact)
+                range.Text = "SIGMA LABORATORIES PRIVATE LIMITED\n";
                 range.Font.Name = "Calibri";
+                range.Font.Size = 12; // Reduced from 14
                 range.Font.Bold = 1;
-                range.Font.Size = 14;
+                range.ParagraphFormat.SpaceAfter = 0; // No gap
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
                 range.InsertParagraphAfter();
 
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
-                range.Text = "\n";
-                range.InsertParagraphAfter();
-                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
-
-                range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
-                range.Font.Name = "Calibri";
-                range.Font.Size = 10;
+                range.Text = "PLOT No. 6,7,8, TIVIM INDL. ESTATE, TIVIM, GOA - 403526\n";
+                range.Font.Size = 9;  // Reduced from 10
                 range.Font.Bold = 0;
+                range.ParagraphFormat.SpaceAfter = 10; // Small gap before title
+                range.InsertParagraphAfter();
 
-                Word.Table table = doc.Tables.Add(range, 9, 2);
+                // 2. TITLE
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                range.Text = "AWR DOCUMENT ISSUANCE RECEIPT";
+                range.Font.Size = 14; // Reduced from 16
+                range.Font.Bold = 1;
+                range.Font.Underline = Word.WdUnderline.wdUnderlineSingle;
+                range.ParagraphFormat.SpaceAfter = 12; // Gap before table
+                range.InsertParagraphAfter();
+
+                // Reset formatting
+                range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
+                range.Font.Underline = Word.WdUnderline.wdUnderlineNone;
+                range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
+
+                // 3. TABLE
+                Word.Table table = doc.Tables.Add(range, 10, 2);
                 table.Borders.Enable = 1;
-                table.Columns[1].Width = 150;
-                table.Columns[2].Width = 300;
+                table.Borders.OutsideLineWidth = Word.WdLineWidth.wdLineWidth150pt;
+
+                // Layout
+                table.PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
+                table.PreferredWidth = 100;
+                table.Columns[1].PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
+                table.Columns[1].PreferredWidth = 30; // 30% Label
+                table.Columns[2].PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
+                table.Columns[2].PreferredWidth = 70; // 70% Value
+
+                // Compact Rows
+                table.Range.Font.Name = "Calibri";
+                table.Range.Font.Size = 10; // Reduced from 11
+                table.Range.ParagraphFormat.SpaceAfter = 3; // Tight spacing
+                table.Rows.WrapAroundText = 0;
 
                 void AddRow(int r, string k, string v)
                 {
                     table.Cell(r, 1).Range.Text = k;
                     table.Cell(r, 1).Range.Font.Bold = 1;
+
                     table.Cell(r, 2).Range.Text = v;
                 }
 
@@ -182,22 +215,28 @@ namespace Awr.Worker.Processors
                 AddRow(4, "Batch No:", _record.BatchNo);
                 AddRow(5, "AR No:", _record.ArNo);
                 AddRow(6, "Copies Issued:", _record.QtyIssued.ToString("0"));
-                AddRow(7, "Issued By (QA):", _record.IssuedByUsername);
-                AddRow(8, "Received By (User):", _record.PrintedByUsername);
-                AddRow(9, "Timestamp:", _record.FinalActionDateText);
+                AddRow(7, "Requested By (QC):", _record.RequestedByUsername);
+                AddRow(8, "Issued By (QA):", _record.IssuedByUsername);
+                AddRow(9, "Received By (QC):", _record.PrintedByUsername);
+                AddRow(10, "Timestamp (Print):", _record.FinalActionDateText);
 
+                // 4. FOOTER
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
-                range.InsertParagraphAfter();
-                range.Text = "\nI acknowledge receipt of the above controlled documents.\n\n\n\n";
+                range.InsertParagraphAfter(); // Move past table
+
+                range.Text = "\nI hereby acknowledge receipt of the controlled documents listed above.\n\n\n";
                 range.Font.Name = "Calibri";
-                range.Font.Size = 10;
+                range.Font.Size = 9;
                 range.Font.Bold = 0;
+                range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
+                range.ParagraphFormat.SpaceAfter = 0;
                 range.InsertParagraphAfter();
 
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.Text = "____________________________________\nSignature & Date";
                 range.Font.Bold = 1;
+                range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
 
                 doc.PrintOut(Background: false);
             }
