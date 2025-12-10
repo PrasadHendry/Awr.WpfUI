@@ -122,7 +122,7 @@
             </Grid>
         </GroupBox>
 
-        <!-- 2. DATA GRID (Alignment Applied) -->
+        <!-- 2. DATA GRID -->
         <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" 
                   ScrollViewer.HorizontalScrollBarVisibility="Visible"
                   ScrollViewer.VerticalScrollBarVisibility="Visible"
@@ -162,17 +162,92 @@
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
 
-                <!-- QC (Center) -->
-                <DataGridTextColumn Header="Prepared By (QC)" Binding="{Binding RequestedBy}" Width="130" ElementStyle="{StaticResource CenterAlignedStyle}"/>
+                <!-- QC (User + Date) -->
+                <DataGridTemplateColumn Header="Prepared By (QC)" Width="140">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding RequestedBy}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding RequestedAt, StringFormat='({0:dd-MM-yyyy HH:mm})'}" HorizontalAlignment="Center" FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
-                <!-- QA (Center) -->
-                <DataGridTextColumn Header="Approved By (QA)" Binding="{Binding IssuedBy}" Width="130" ElementStyle="{StaticResource CenterAlignedStyle}"/>
+                <!-- QA (User + Date) -->
+                <DataGridTemplateColumn Header="Approved By (QA)" Width="140">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding IssuedBy}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding IssuedAt, StringFormat='({0:dd-MM-yyyy HH:mm})'}" HorizontalAlignment="Center" FontSize="11" Foreground="#555">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IssuedBy}" Value="NA">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IssuedAt}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
-                <!-- Printed By (Center) -->
-                <DataGridTextColumn Header="Printed By (QC)" Binding="{Binding ReceivedBy}" Width="130" ElementStyle="{StaticResource CenterAlignedStyle}"/>
+                <!-- Printed By (User + Date) -->
+                <DataGridTemplateColumn Header="Printed By (QC)" Width="140">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ReceivedBy}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding ReceivedAt, StringFormat='({0:dd-MM-yyyy HH:mm})'}" HorizontalAlignment="Center" FontSize="11" Foreground="#555">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ReceivedBy}" Value="NA">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ReceivedAt}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
-                <!-- Voided By (Center) -->
-                <DataGridTextColumn Header="Voided By (QC)" Binding="{Binding ReturnedBy}" Width="130" ElementStyle="{StaticResource CenterAlignedStyle}"/>
+                <!-- Voided By (User + Date) -->
+                <DataGridTemplateColumn Header="Voided By (QC)" Width="140">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ReturnedBy}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding ReturnedAt, StringFormat='({0:dd-MM-yyyy HH:mm})'}" HorizontalAlignment="Center" FontSize="11" Foreground="#555">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding ReturnedBy}" Value="NA">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ReturnedAt}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
                 <!-- Remark (Left) -->
                 <DataGridTextColumn Header="Remark / Justification" Binding="{Binding Remark}" Width="400" ElementStyle="{StaticResource WrappedColumnStyle}"/>
@@ -186,14 +261,14 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
-                <Button Content="Export CSV" Width="100" Height="30" Margin="0,0,10,0" Background="#6C757D" Foreground="White" BorderThickness="0">
+                <Button Content="Export Excel" Command="{Binding ExportExcelCommand}" Width="100" Height="30" Margin="0,0,10,0" Background="#6C757D" Foreground="White" BorderThickness="0">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="4"/>
                         </Style>
                     </Button.Resources>
                 </Button>
-                <Button Content="Export Excel" Width="100" Height="30" Background="#6C757D" Foreground="White" BorderThickness="0">
+                <Button Content="Export PDF" Command="{Binding ExportPdfCommand}" Width="100" Height="30" Background="#6C757D" Foreground="White" BorderThickness="0">
                     <Button.Resources>
                         <Style TargetType="Border">
                             <Setter Property="CornerRadius" Value="4"/>
