@@ -17,13 +17,28 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Border Background="#41546E" Padding="20,0">
+        <Border Background="#41546E" Padding="15,0">
             <Grid>
-                <TextBlock Text="AWR Issuance System" FontSize="20" FontWeight="Bold" Foreground="White" 
-                           VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Left: Logo -->
+                    <ColumnDefinition Width="*"/>
+                    <!-- Center: Title -->
+                    <ColumnDefinition Width="Auto"/>
+                    <!-- Right: User/SignOut -->
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: Logo -->
+                <Image Source="/Images/Sigma_Logo.jpg" Height="40" HorizontalAlignment="Left" Margin="0,0,15,0" RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                <!-- Center: Title -->
+                <TextBlock Grid.Column="1" Text="AWR Issuance System" FontSize="22" FontWeight="Bold" Foreground="White" 
+                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                <!-- Right: User Info -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{Binding LoggedInUser, StringFormat='Logged in as: {0}'}" 
-                               Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                               Foreground="White" VerticalAlignment="Center" Margin="0,0,20,0" FontSize="14"/>
                     <Button Content="Sign Out" Command="{Binding SignOutCommand}" 
                             Background="#DC3545" Foreground="White" Padding="15,5" BorderThickness="0" FontWeight="Bold">
                         <Button.Resources>
