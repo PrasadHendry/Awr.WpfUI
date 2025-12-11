@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Awr.WpfUI.ViewModels"
         mc:Ignorable="d"
+        Icon="/Images/awr-is-logo.ico" 
         Title="AWR Issuance System - Login" 
         Height="600" Width="800"
         MinHeight="500" MinWidth="600"
