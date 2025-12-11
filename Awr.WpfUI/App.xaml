@@ -48,10 +48,8 @@
             <v:AuditTrailView />
         </DataTemplate>
 
-        <DataTemplate DataType="{x:Type vm:PlaceholderViewModel}">
-            <Grid Background="#EEE">
-                <TextBlock Text="Coming Soon..." VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#999" FontSize="20"/>
-            </Grid>
+        <DataTemplate DataType="{x:Type vm:UsersViewModel}">
+            <v:UsersView />
         </DataTemplate>
 
     </Application.Resources>

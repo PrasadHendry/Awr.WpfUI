@@ -61,18 +61,16 @@ namespace Awr.WpfUI.ViewModels
                     Tabs.Add(new TabItemViewModel("New Request", new NewRequestViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Approval Queue", new IssuanceQueueViewModel(_pcUsername)));
                     Tabs.Add(new TabItemViewModel("Receipt & Print", new ReceiptReturnViewModel(_pcUsername)));
-                    Tabs.Add(new TabItemViewModel("Users", new PlaceholderViewModel()));
+                    Tabs.Add(new TabItemViewModel("Users", new UsersViewModel()));
                     break;
             }
 
             // 3. Smart Tab Selection
             if (Tabs.Count > 0)
             {
-                // Default to Audit Trail
                 TabItemViewModel targetTab = Tabs[0];
 
-                // Override based on Workflow Priority
-                if (role == "Requester" || role == "Admin")
+                if (role == "Requester")
                 {
                     var newReq = Tabs.FirstOrDefault(t => t.Header == "New Request");
                     if (newReq != null) targetTab = newReq;
@@ -81,6 +79,12 @@ namespace Awr.WpfUI.ViewModels
                 {
                     var approval = Tabs.FirstOrDefault(t => t.Header == "Approval Queue");
                     if (approval != null) targetTab = approval;
+                }
+                else if (role == "Admin")
+                {
+                    // FIX: Default to "Users" for Admin
+                    var usersTab = Tabs.FirstOrDefault(t => t.Header == "Users");
+                    if (usersTab != null) targetTab = usersTab;
                 }
 
                 SelectedTab = targetTab;

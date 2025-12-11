@@ -70,7 +70,7 @@ namespace Awr.WpfUI.ViewModels
             if (MessageBox.Show($"Void Request {SelectedItem.RequestNo}?", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No) return;
             IsBusy = true;
             try { await Service.VoidItemAsync(SelectedItem.ItemId, Username, VoidReason); MessageBox.Show("Voided.", "Success", MessageBoxButton.OK, MessageBoxImage.Information); await LoadDataAsync(); }
-            catch (Exception ex) { MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Exclamation); }
+            catch (Exception ex) { MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error); }
             finally { IsBusy = false; }
         }
     }

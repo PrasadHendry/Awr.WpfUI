@@ -8,5 +8,6 @@ namespace Awr.WpfUI.Services.Interfaces
     {
         Task<(bool IsSuccess, string Role)> ValidateUserAsync(string username, string password);
         Task<List<UserRoleDto>> GetUserRolesAsync();
+        Task UpdatePasswordAsync(string roleName, string newPassword);
     }
 }

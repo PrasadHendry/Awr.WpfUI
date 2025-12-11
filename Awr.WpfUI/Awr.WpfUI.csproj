@@ -120,6 +120,7 @@
     <Compile Include="ViewModels\ReceiptReturnViewModel.cs" />
     <Compile Include="ViewModels\NewRequestViewModel.cs" />
     <Compile Include="ViewModels\Shared\WorkQueueViewModel.cs" />
+    <Compile Include="ViewModels\UsersViewModel.cs" />
     <Compile Include="Views\AuditTrailView.xaml.cs">
       <DependentUpon>AuditTrailView.xaml</DependentUpon>
     </Compile>
@@ -142,6 +143,9 @@
     <Compile Include="Views\NewRequestView.xaml.cs">
       <DependentUpon>NewRequestView.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\UsersView.xaml.cs">
+      <DependentUpon>UsersView.xaml</DependentUpon>
+    </Compile>
     <Page Include="Views\AuditTrailView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -158,6 +162,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\NewRequestView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\UsersView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
   </ItemGroup>
