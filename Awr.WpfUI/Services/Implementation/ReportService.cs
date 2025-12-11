@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using OfficeOpenXml; // EPPlus 4.5.3.3
 using OfficeOpenXml.Style;
-using OfficeOpenXml.Drawing; // For Excel Images
 using Awr.Core.DTOs;
 using Awr.Core.Enums;
 using QuestPDF.Fluent;
@@ -15,15 +14,13 @@ namespace Awr.WpfUI.Services.Implementation
 {
     public class ReportService
     {
-        // Path to Logo (Must be Copy to Output Directory)
-        private readonly string _logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images", "SIGMA_LOGO_BLK.png");
+        // CHANGED: Point to JPG which has Name embedded
+        private readonly string _logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Images", "Sigma_Logo.jpg");
 
         public ReportService()
         {
             QuestPDF.Settings.License = LicenseType.Community;
         }
-
-        // --- HELPERS ---
 
         private string GetStatusDisplay(AwrItemStatus s)
         {
@@ -42,7 +39,6 @@ namespace Awr.WpfUI.Services.Implementation
         {
             if (string.IsNullOrEmpty(username) || username == "NA") return "NA";
             if (!date.HasValue || date.Value.Year < 2000) return username;
-
             return $"{username}\n({date.Value:dd-MM-yyyy HH:mm})";
         }
 
@@ -60,70 +56,92 @@ namespace Awr.WpfUI.Services.Implementation
             {
                 var ws = package.Workbook.Worksheets.Add("Audit Trail");
 
-                // Security
+                // --- 1. SETUP ---
                 ws.Protection.IsProtected = true; ws.Protection.SetPassword("QA");
                 ws.Protection.AllowFormatColumns = true; ws.Protection.AllowFormatRows = true; ws.Protection.AllowSelectLockedCells = true;
                 ws.DefaultRowHeight = 45;
                 ws.Cells.Style.Font.Name = "Calibri"; ws.Cells.Style.Font.Size = 11; ws.Cells.Style.VerticalAlignment = ExcelVerticalAlignment.Center;
                 ws.View.FreezePanes(6, 1);
 
-                // Header Frame
-                ws.Cells["A1:M3"].Style.Border.BorderAround(ExcelBorderStyle.Thick);
+                // --- 2. HEADER CONTENT ---
 
-                // Debug:
-                if (!File.Exists(_logoPath))
-                {
-                    System.Windows.MessageBox.Show($"Logo missing at: {_logoPath}");
-                }
-                // --- INSERT LOGO ---
+                // Row 1: Image + Form No
+                ws.Row(1).Height = 60;
                 if (File.Exists(_logoPath))
                 {
                     var logo = ws.Drawings.AddPicture("SigmaLogo", new FileInfo(_logoPath));
-                    logo.SetPosition(0, 5, 0, 5); // Row 0, Offset 5px
-                    logo.SetSize(60, 60); // Adjust size as needed
+                    logo.SetSize(250, 55);
+                    logo.SetPosition(0, 5, 0, 5);
                 }
 
+                ws.Cells["L1:M1"].Merge = true;
+                ws.Cells["L1"].Value = "Form No.: SOP/QA/003/F2-02";
+                ws.Cells["L1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+                ws.Cells["L1"].Style.VerticalAlignment = ExcelVerticalAlignment.Top;
+                ws.Cells["L1"].Style.Font.Size = 9;
 
-                // Company Text
-                ws.Cells["A1:M1"].Merge = true;
-                ws.Cells["A1"].Value = "SIGMA LABORATORIES PRIVATE LIMITED\nPLOT No. 6,7,8, TIVIM INDL. ESTATE, TIVIM, GOA";
-                ws.Cells["A1"].Style.WrapText = true; ws.Cells["A1"].Style.Font.Bold = true; ws.Cells["A1"].Style.Font.Size = 12;
-                ws.Row(1).Height = 60;
-                ws.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-
-                // Form No
+                // Row 2: Address
                 ws.Cells["A2:M2"].Merge = true;
-                ws.Cells["A2"].Value = "Form No.: SOP/QA/003/F2-02"; ws.Cells["A2"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
+                ws.Cells["A2"].Value = "PLOT No. 6,7,8, TIVIM INDL. ESTATE, TIVIM, GOA - 403526";
+                ws.Cells["A2"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
+                ws.Cells["A2"].Style.Indent = 1;
+                ws.Cells["A2"].Style.Font.Size = 10;
+                ws.Row(2).Height = 20;
 
-                // Title
+                // Row 3: Title
                 ws.Cells["A3:M3"].Merge = true;
                 ws.Cells["A3"].Value = "Audit Trail for Issuance of AWR";
-                ws.Cells["A3"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ws.Cells["A3"].Style.Font.Bold = true; ws.Cells["A3"].Style.Font.Size = 14;
-                ws.Cells["A3"].Style.Fill.PatternType = ExcelFillStyle.Solid; ws.Cells["A3"].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.WhiteSmoke);
+                ws.Cells["A3"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                ws.Cells["A3"].Style.Font.Bold = true;
+                ws.Cells["A3"].Style.Font.Size = 14;
+                ws.Cells["A3"].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                ws.Cells["A3"].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.WhiteSmoke);
 
-                // Group Headers
+                // Row 4: Group Headers
                 ws.Cells["A4:F4"].Merge = true; ws.Cells["A4"].Value = "Request Details";
-                ws.Cells["A4"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ws.Cells["A4"].Style.Border.BorderAround(ExcelBorderStyle.Thin); ws.Cells["A4"].Style.Font.Bold = true;
+                ws.Cells["A4"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ws.Cells["A4"].Style.Font.Bold = true;
 
                 ws.Cells["G4:M4"].Merge = true; ws.Cells["G4"].Value = "Issuance Details";
-                ws.Cells["G4"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ws.Cells["G4"].Style.Border.BorderAround(ExcelBorderStyle.Thin); ws.Cells["G4"].Style.Font.Bold = true;
+                ws.Cells["G4"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center; ws.Cells["G4"].Style.Font.Bold = true;
 
-                // Column Headers
+                // --- 3. HEADER BORDERS (Explicit) ---
+
+                // Main Outer Box (A1:M4)
+                var headerBox = ws.Cells["A1:M4"];
+                headerBox.Style.Border.BorderAround(ExcelBorderStyle.Thick);
+
+                // Divider: Below Row 2 (Address)
+                ws.Cells["A2:M2"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+
+                // Divider: Below Row 3 (Title)
+                ws.Cells["A3:M3"].Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+
+                // Divider: Vertical between Groups (Row 4, Col F right side)
+                ws.Cells["F4"].Style.Border.Right.Style = ExcelBorderStyle.Medium;
+
+                // Row 5: Column Headers (Full Grid)
                 for (int i = 0; i < _headers.Length; i++)
                 {
-                    ws.Cells[5, i + 1].Value = _headers[i];
-                    ws.Cells[5, i + 1].Style.Font.Bold = true;
-                    ws.Cells[5, i + 1].Style.Border.BorderAround(ExcelBorderStyle.Thin);
-                    ws.Cells[5, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    ws.Cells[5, i + 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
-                    ws.Cells[5, i + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-                    ws.Cells[5, i + 1].Style.WrapText = true;
+                    var cell = ws.Cells[5, i + 1];
+                    cell.Value = _headers[i];
+                    cell.Style.Font.Bold = true;
+                    cell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                    cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+                    cell.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                    cell.Style.WrapText = true;
+                    cell.Style.Border.BorderAround(ExcelBorderStyle.Thin);
                 }
 
-                // Data Rows
+                // Thicken Outer Edges of Row 5
+                ws.Cells["A5"].Style.Border.Left.Style = ExcelBorderStyle.Thick;
+                ws.Cells["M5"].Style.Border.Right.Style = ExcelBorderStyle.Thick;
+                ws.Cells["A5:M5"].Style.Border.Bottom.Style = ExcelBorderStyle.Medium; // Separate headers from data
+
+                // --- 4. DATA ROWS ---
                 int row = 6;
                 foreach (var item in data)
                 {
+                    // Values
                     ws.Cells[row, 1].Value = item.RequestNo;
                     ws.Cells[row, 2].Value = item.AwrNo;
                     ws.Cells[row, 3].Value = item.AwrType.ToString();
@@ -132,24 +150,26 @@ namespace Awr.WpfUI.Services.Implementation
                     ws.Cells[row, 6].Value = item.ArNo;
                     ws.Cells[row, 7].Value = item.QtyIssued ?? item.QtyRequired;
                     ws.Cells[row, 8].Value = GetStatusDisplay(item.Status);
-
-                    // User + Date
                     ws.Cells[row, 9].Value = FormatUserDate(item.RequestedBy, item.RequestedAt);
                     ws.Cells[row, 10].Value = FormatUserDate(item.IssuedBy, item.IssuedAt);
                     ws.Cells[row, 11].Value = FormatUserDate(item.ReceivedBy, item.ReceivedAt);
                     ws.Cells[row, 12].Value = FormatUserDate(item.ReturnedBy, item.ReturnedAt);
-
                     ws.Cells[row, 13].Value = item.Remark;
 
-                    // Styles
+                    // Row Style
                     var rng = ws.Cells[row, 1, row, 13];
                     rng.Style.WrapText = true;
                     rng.Style.VerticalAlignment = ExcelVerticalAlignment.Top;
-                    rng.Style.Border.BorderAround(ExcelBorderStyle.Thin);
+
+                    // Inner Grid Borders
                     rng.Style.Border.Right.Style = ExcelBorderStyle.Thin;
                     rng.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
 
-                    // Alignments
+                    // Thick Outer Borders
+                    ws.Cells[row, 1].Style.Border.Left.Style = ExcelBorderStyle.Thick;
+                    ws.Cells[row, 13].Style.Border.Right.Style = ExcelBorderStyle.Thick;
+
+                    // Alignment
                     ws.Cells[row, 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                     ws.Cells[row, 2].Style.HorizontalAlignment = ExcelHorizontalAlignment.Left;
                     ws.Cells[row, 3].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
@@ -166,6 +186,9 @@ namespace Awr.WpfUI.Services.Implementation
 
                     row++;
                 }
+
+                // Close Bottom Border
+                ws.Cells[row - 1, 1, row - 1, 13].Style.Border.Bottom.Style = ExcelBorderStyle.Thick;
 
                 // Widths
                 ws.Column(1).Width = 22; ws.Column(2).Width = 25; ws.Column(3).Width = 10;
@@ -184,7 +207,7 @@ namespace Awr.WpfUI.Services.Implementation
         }
 
         // ==========================================
-        // PDF EXPORT (QuestPDF)
+        // PDF EXPORT (QuestPDF - Updated Layout)
         // ==========================================
 
         private IContainer HeaderCellStyle(IContainer c) => c.Background(Colors.Grey.Lighten3).Border(0.5f).BorderColor(Colors.Black).Padding(4).AlignCenter().AlignMiddle();
@@ -201,27 +224,27 @@ namespace Awr.WpfUI.Services.Implementation
                     page.Margin(20);
                     page.DefaultTextStyle(x => x.FontSize(8).FontFamily("Calibri"));
 
-                    // HEADER
+                    // HEADER (New Layout: Image Top, Text Below)
                     page.Header().Column(col =>
                     {
-                        col.Item().Border(1.5f).BorderColor(Colors.Black).Padding(0).Row(row =>
+                        col.Item().Border(1.5f).BorderColor(Colors.Black).Padding(5).Row(row =>
                         {
-                            // 1. LOGO
-                            if (File.Exists(_logoPath))
+                            // Left Section: Logo + Address Stack
+                            row.RelativeItem().Column(c =>
                             {
-                                byte[] logoBytes = File.ReadAllBytes(_logoPath);
-                                row.ConstantItem(60).Padding(5).AlignMiddle().Image(logoBytes);
-                            }
+                                // 1. Logo
+                                if (File.Exists(_logoPath))
+                                {
+                                    byte[] logoBytes = File.ReadAllBytes(_logoPath);
+                                    c.Item().Height(40).AlignLeft().Image(logoBytes).FitArea();
+                                }
 
-                            // 2. Company Text
-                            row.RelativeItem().Padding(10).Column(c =>
-                            {
-                                c.Item().Text("SIGMA LABORATORIES PRIVATE LIMITED").Bold().FontSize(11);
-                                c.Item().Text("PLOT No. 6,7,8, TIVIM INDL. ESTATE, TIVIM, GOA - 403526").FontSize(9);
+                                // 2. Address (Below Logo)
+                                c.Item().Text("PLOT No. 6,7,8, TIVIM INDL. ESTATE, TIVIM, GOA - 403526").FontSize(8);
                             });
 
-                            // 3. Form No
-                            row.ConstantItem(180).Padding(10).AlignRight().Text("Form No.: SOP/QA/003/F2-02").FontSize(10);
+                            // Right Section: Form No
+                            row.ConstantItem(150).AlignRight().AlignTop().Text("Form No.: SOP/QA/003/F2-02").FontSize(9);
                         });
 
                         col.Item().PaddingVertical(5);
@@ -229,7 +252,7 @@ namespace Awr.WpfUI.Services.Implementation
                         col.Item().PaddingVertical(5);
                     });
 
-                    // TABLE
+                    // TABLE (Same as before)
                     page.Content().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
@@ -255,13 +278,10 @@ namespace Awr.WpfUI.Services.Implementation
                             table.Cell().Element(LeftDataStyle).Text(item.ArNo);
                             table.Cell().Element(CenterDataStyle).Text(item.QtyIssued?.ToString("0") ?? "0");
                             table.Cell().Element(CenterDataStyle).Text(GetStatusDisplay(item.Status));
-
-                            // User + Date
                             table.Cell().Element(CenterDataStyle).Text(FormatUserDate(item.RequestedBy, item.RequestedAt));
                             table.Cell().Element(CenterDataStyle).Text(FormatUserDate(item.IssuedBy, item.IssuedAt));
                             table.Cell().Element(CenterDataStyle).Text(FormatUserDate(item.ReceivedBy, item.ReceivedAt));
                             table.Cell().Element(CenterDataStyle).Text(FormatUserDate(item.ReturnedBy, item.ReturnedAt));
-
                             table.Cell().Element(LeftDataStyle).Text(item.Remark);
                         }
                     });
