@@ -221,6 +221,9 @@
   <ItemGroup>
     <Resource Include="Images\awr-is-logo.ico" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\awr-is-logo.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\Awr.Worker.exe" "$(TargetDir)"
