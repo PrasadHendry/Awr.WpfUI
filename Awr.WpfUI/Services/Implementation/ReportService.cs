@@ -75,7 +75,7 @@ namespace Awr.WpfUI.Services.Implementation
                 }
 
                 ws.Cells["L1:M1"].Merge = true;
-                ws.Cells["L1"].Value = "Form No.: SOP/QA/003/F2-02";
+                ws.Cells["L1"].Value = "Form No.: SOP/QA/003/F2";
                 ws.Cells["L1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Right;
                 ws.Cells["L1"].Style.VerticalAlignment = ExcelVerticalAlignment.Top;
                 ws.Cells["L1"].Style.Font.Size = 9;
@@ -244,7 +244,7 @@ namespace Awr.WpfUI.Services.Implementation
                             });
 
                             // Right Section: Form No
-                            row.ConstantItem(150).AlignRight().AlignTop().Text("Form No.: SOP/QA/003/F2-02").FontSize(9);
+                            row.ConstantItem(150).AlignRight().AlignTop().Text("Form No.: SOP/QA/003/F2").FontSize(9);
                         });
 
                         col.Item().PaddingVertical(5);
