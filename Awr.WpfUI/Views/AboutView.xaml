@@ -6,48 +6,51 @@
              mc:Ignorable="d" 
              d:DesignHeight="600" d:DesignWidth="800" Background="White">
 
-    <Grid>
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+    <!-- ADDED SCROLLVIEWER -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
 
-            <!-- Logo -->
-            <Image Source="/Images/Sigma_Logo.jpg" Height="80" Margin="0,0,0,20" RenderOptions.BitmapScalingMode="HighQuality"/>
+        <Grid>
+            <!-- ADDED MARGIN FOR SPACING -->
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20,40">
 
-            <!-- App Name -->
-            <TextBlock Text="{Binding AppName}" FontSize="24" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                <!-- 1. APP ICON -->
+                <Image Source="/Images/awr-is-logo.png" Height="64" Margin="0,0,0,15" RenderOptions.BitmapScalingMode="HighQuality"/>
 
-            <!-- Version -->
-            <TextBlock Text="{Binding AppVersion}" FontSize="14" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                <!-- App Name & Version -->
+                <TextBlock Text="{Binding AppName}" FontSize="24" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                <TextBlock Text="{Binding AppVersion}" FontSize="14" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,25"/>
 
-            <!-- Divider -->
-            <Separator Width="300" Margin="0,0,0,20"/>
+                <Separator Width="400" Margin="0,0,0,25" Background="#EEE"/>
 
-            <!-- Description Title -->
-            <TextBlock Text="Controlled Document Issuance &amp; Lifecycle Management" 
-                       FontSize="16" FontWeight="SemiBold" Foreground="#333" 
-                       HorizontalAlignment="Center" Margin="0,0,0,15"/>
+                <!-- Description Title -->
+                <TextBlock Text="Controlled Document Issuance &amp; Lifecycle Management" 
+                           FontSize="16" FontWeight="SemiBold" Foreground="#333" 
+                           HorizontalAlignment="Center" Margin="0,0,0,15"/>
 
-            <!-- Main Description (Paragraph 1) -->
-            <TextBlock Text="The AWR Issuance System (AWR-IS) is a secure, validated desktop application used in pharmaceutical Quality Control for the controlled issuance of Analytical Work Records. It replaces manual logbooks with a fully traceable, electronic workflow that manages Request → Approval → Document Generation → Issuance → Printing/Receipt under strict Good Documentation Practices (GDP)." 
-                       FontSize="13" Foreground="#555" TextAlignment="Center" TextWrapping="Wrap"
-                       Margin="40,0,40,10" LineHeight="20"/>
+                <!-- Descriptions -->
+                <TextBlock Text="The AWR Issuance System (AWR-IS) is a secure, validated desktop application used in pharmaceutical Quality Control for the controlled issuance of Analytical Work Records. It replaces manual logbooks with a fully traceable, electronic workflow that manages Request → Approval → Document Generation → Issuance → Printing/Receipt under strict Good Documentation Practices (GDP)." 
+                           FontSize="13" Foreground="#555" TextAlignment="Center" TextWrapping="Wrap" Margin="40,0,40,10" LineHeight="20"/>
 
-            <!-- Main Description (Paragraph 2) -->
-            <TextBlock Text="The system ensures data integrity (ALCOA+) through restricted access to master templates, automated stamping of document headers/footers, encryption of issued files, prevention of duplicate AR numbers, and non-deletable (immutable) audit-tracked requests. Role-based access control (RBAC) governs QC (Requester), QA (Approver), and Admin permissions, ensuring that every AWR document is approved, issued, and received in a controlled and compliant manner." 
-                       FontSize="13" Foreground="#555" TextAlignment="Center" TextWrapping="Wrap"
-                       Margin="40,0,40,30" LineHeight="20"/>
+                <TextBlock Text="The system ensures data integrity (ALCOA+) through restricted access to master templates, automated stamping of document headers/footers, encryption of issued files, prevention of duplicate AR numbers, and non-deletable (immutable) audit-tracked requests. Role-based access control (RBAC) governs QC (Requester), QA (Approver), and Admin permissions, ensuring that every AWR document is approved, issued, and received in a controlled and compliant manner." 
+                           FontSize="13" Foreground="#555" TextAlignment="Center" TextWrapping="Wrap" Margin="40,0,40,30" LineHeight="20"/>
 
-            <!-- Contact -->
-            <Border Background="#F9F9F9" Padding="20" CornerRadius="8" BorderBrush="#EEE" BorderThickness="1">
-                <StackPanel>
-                    <TextBlock Text="Support &amp; Maintenance" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,5"/>
-                    <TextBlock Text="{Binding SupportContact}" HorizontalAlignment="Center" Foreground="#007BFF"/>
-                    <TextBlock Text="Email: edp@sigmalabs.in" HorizontalAlignment="Center" Foreground="#007BFF" Margin="0,5,0,0"/>
-                </StackPanel>
-            </Border>
+                <!-- Contact Box -->
+                <Border Background="#F9F9F9" Padding="20" CornerRadius="8" BorderBrush="#EEE" BorderThickness="1" Margin="0,0,0,30" HorizontalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="Support &amp; Maintenance" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                        <TextBlock Text="{Binding SupportContact}" HorizontalAlignment="Center" Foreground="#007BFF"/>
+                        <TextBlock Text="Email: edp@sigmalabs.in" HorizontalAlignment="Center" Foreground="#007BFF" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Border>
 
-            <!-- Copyright -->
-            <TextBlock Text="{Binding Copyright}" FontSize="12" Foreground="#999" HorizontalAlignment="Center" Margin="0,40,0,0"/>
+                <!-- 2. COMPANY LOGO -->
+                <Image Source="/Images/Sigma_Logo.jpg" Height="50" Margin="0,0,0,10" RenderOptions.BitmapScalingMode="HighQuality"/>
 
-        </StackPanel>
-    </Grid>
+                <!-- Copyright -->
+                <TextBlock Text="{Binding Copyright}" FontSize="12" Foreground="#999" HorizontalAlignment="Center"/>
+
+            </StackPanel>
+        </Grid>
+
+    </ScrollViewer>
 </UserControl>
