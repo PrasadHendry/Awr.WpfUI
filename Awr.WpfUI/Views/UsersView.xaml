@@ -28,7 +28,15 @@
             <TextBlock Text="System Roles" DockPanel.Dock="Top" FontSize="16" FontWeight="Bold" Foreground="#333" Margin="0,0,0,10"/>
             <DataGrid ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole}" AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderBrush="#CCC" BorderThickness="1" Background="White" RowHeight="35">
                 <DataGrid.Columns>
+                    <!-- Column 1: ID -->
                     <DataGridTextColumn Header="ID" Binding="{Binding RoleID}" Width="60">
+                        <!-- Style to center the column HEADER content -->
+                        <DataGridTextColumn.HeaderStyle>
+                            <Style TargetType="{x:Type DataGridColumnHeader}">
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.HeaderStyle>
+                        <!-- Existing style to center the column CELL content -->
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>
@@ -36,7 +44,16 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="Role Name" Binding="{Binding RoleName}" Width="*" FontWeight="Bold">
+
+                    <!-- Column 2: Role Name -->
+                    <DataGridTextColumn Header="Role Name" Binding="{Binding RoleName}" Width="*" FontWeight="Bold" >
+                        <!-- Style to center the column HEADER content -->
+                        <DataGridTextColumn.HeaderStyle>
+                            <Style TargetType="{x:Type DataGridColumnHeader}">
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.HeaderStyle>
+                        <!-- Existing style to center the column CELL content -->
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="HorizontalAlignment" Value="Center"/>

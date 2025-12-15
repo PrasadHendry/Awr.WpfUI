@@ -131,6 +131,7 @@
     <Compile Include="Services\Interfaces\IAuthenticationService.cs" />
     <Compile Include="Services\Interfaces\IWorkflowService.cs" />
     <Compile Include="Services\WorkerContracts.cs" />
+    <Compile Include="ViewModels\AboutViewModel.cs" />
     <Compile Include="ViewModels\AuditTrailViewModel.cs" />
     <Compile Include="ViewModels\IssuanceQueueViewModel.cs" />
     <Compile Include="ViewModels\LoginViewModel.cs" />
@@ -139,6 +140,9 @@
     <Compile Include="ViewModels\NewRequestViewModel.cs" />
     <Compile Include="ViewModels\Shared\WorkQueueViewModel.cs" />
     <Compile Include="ViewModels\UsersViewModel.cs" />
+    <Compile Include="Views\AboutView.xaml.cs">
+      <DependentUpon>AboutView.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\AuditTrailView.xaml.cs">
       <DependentUpon>AuditTrailView.xaml</DependentUpon>
     </Compile>
@@ -164,6 +168,9 @@
     <Compile Include="Views\UsersView.xaml.cs">
       <DependentUpon>UsersView.xaml</DependentUpon>
     </Compile>
+    <Page Include="Views\AboutView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Views\AuditTrailView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

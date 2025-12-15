@@ -65,7 +65,10 @@ namespace Awr.WpfUI.ViewModels
                     break;
             }
 
-            // 3. Smart Tab Selection
+            // 3. About Tab (Always Last)
+            Tabs.Add(new TabItemViewModel("About", new AboutViewModel()));
+
+            // 4. Smart Tab Selection
             if (Tabs.Count > 0)
             {
                 TabItemViewModel targetTab = Tabs[0];
@@ -91,7 +94,7 @@ namespace Awr.WpfUI.ViewModels
             }
         }
 
-        private void OnSignOut()
+private void OnSignOut()
         {
             // 1. Confirm Intent
             if (System.Windows.MessageBox.Show("Are you sure you want to Sign Out?", "Confirm Sign Out", 
@@ -100,11 +103,14 @@ namespace Awr.WpfUI.ViewModels
                 return;
             }
 
-            // 2. Raise Event (Tells View to disable the closing confirmation)
+            // 2. Raise Event to prevent "Closing" prompt
             SigningOut?.Invoke(this, EventArgs.Empty);
 
-            // 3. Restart Application
-            System.Windows.Forms.Application.Restart();
+            // 3. Robust Restart (Replaces System.Windows.Forms.Application.Restart)
+            // Starts a new instance of the current executable
+            System.Diagnostics.Process.Start(System.Windows.Application.ResourceAssembly.Location);
+            
+            // Shuts down the current instance
             System.Windows.Application.Current.Shutdown();
         }
     }
