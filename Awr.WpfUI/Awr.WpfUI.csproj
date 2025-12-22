@@ -260,9 +260,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\Awr.Worker.exe" "$(TargetDir)"
-xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\Awr.Worker.exe.config" "$(TargetDir)"
-xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\Debug\*.dll" "$(TargetDir)"
+    <PostBuildEvent>xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\$(ConfigurationName)\Awr.Worker.exe" "$(TargetDir)"
+xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\$(ConfigurationName)\Awr.Worker.exe.config" "$(TargetDir)"
+xcopy /Y /D "$(SolutionDir)Backend\Awr.Worker\bin\x86\$(ConfigurationName)\*.dll" "$(TargetDir)"
 xcopy /Y /D "$(ProjectDir)Images\Sigma_Logo.jpg" "$(TargetDir)Images\"</PostBuildEvent>
   </PropertyGroup>
   <Import Project="..\packages\QuestPDF.2025.7.4\build\net4\QuestPDF.targets" Condition="Exists('..\packages\QuestPDF.2025.7.4\build\net4\QuestPDF.targets')" />

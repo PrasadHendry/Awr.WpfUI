@@ -64,8 +64,8 @@
             <!-- 2. GRID -->
             <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
                       MaxWidth="{Binding ActualWidth, ElementName=RootGrid}"
-                      MaxHeight="700" 
-                      MinHeight="350"
+                      MaxHeight="400" 
+                      MinHeight="200"
                       AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                       HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                       ScrollViewer.HorizontalScrollBarVisibility="Visible"

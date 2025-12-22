@@ -217,20 +217,83 @@ namespace Awr.Data.Repositories
 
         public void IssueItem(int itemId, decimal qtyIssued, string qaUsername)
         {
-            const string sql = @"UPDATE dbo.AwrRequestItem SET QtyIssued = @Qty, IssuedByUsername = @Username, IssuedAt = GETDATE(), Status = 'Issued' WHERE Id = @ItemId AND Status = 'PendingIssuance';";
             using (var connection = GetConnection())
             {
-                // Note: QtyIssued tracks actual output, usually matches Request.
-                if (connection.Execute(sql, new { ItemId = itemId, Username = qaUsername, Qty = qtyIssued }) == 0) throw new InvalidOperationException("Issuance failed.");
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Update ITEM
+                        const string itemSql = @"
+                            UPDATE dbo.AwrRequestItem 
+                            SET QtyIssued = @Qty, 
+                                IssuedByUsername = @Username, 
+                                IssuedAt = GETDATE(), 
+                                Status = 'Issued' 
+                            OUTPUT INSERTED.AwrRequestId 
+                            WHERE Id = @ItemId AND Status = 'PendingIssuance';";
+
+                        int? headerId = connection.ExecuteScalar<int?>(itemSql,
+                            new { ItemId = itemId, Username = qaUsername, Qty = qtyIssued },
+                            transaction: transaction);
+
+                        if (headerId == null)
+                            throw new InvalidOperationException("Issuance failed. Item not found or not Pending.");
+
+                        // 2. Update HEADER
+                        const string headerSql = @"
+                            UPDATE dbo.AwrRequest 
+                            SET CurrentStatus = 'Issued', 
+                                IssuedByUsername = @Username, 
+                                IssuedAt = GETDATE() 
+                            WHERE Id = @HeaderId;";
+
+                        connection.Execute(headerSql, new { HeaderId = headerId, Username = qaUsername }, transaction: transaction);
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
             }
         }
 
         public void ReceiveItem(int itemId, string requesterUsername)
         {
-            const string sql = @"UPDATE dbo.AwrRequestItem SET ReceivedByUsername = @Username, ReceivedAt = GETDATE(), Status = 'InUse' WHERE Id = @ItemId AND Status = 'Issued';";
             using (var connection = GetConnection())
             {
-                if (connection.Execute(sql, new { ItemId = itemId, Username = requesterUsername }) == 0) throw new InvalidOperationException("Receipt failed.");
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // 1. Update ITEM
+                        const string itemSql = @"
+                            UPDATE dbo.AwrRequestItem 
+                            SET ReceivedByUsername = @Username, 
+                                ReceivedAt = GETDATE(), 
+                                Status = 'InUse' 
+                            OUTPUT INSERTED.AwrRequestId
+                            WHERE Id = @ItemId AND Status = 'Issued';";
+
+                        int? headerId = connection.ExecuteScalar<int?>(itemSql,
+                            new { ItemId = itemId, Username = requesterUsername },
+                            transaction: transaction);
+
+                        if (headerId == null) throw new InvalidOperationException("Receipt failed.");
+
+                        // 2. Update HEADER
+                        connection.Execute("UPDATE dbo.AwrRequest SET CurrentStatus = 'InUse' WHERE Id = @Id",
+                            new { Id = headerId }, transaction: transaction);
+
+                        transaction.Commit();
+                    }
+                    catch { transaction.Rollback(); throw; }
+                }
             }
         }
 
@@ -275,10 +338,30 @@ namespace Awr.Data.Repositories
 
         public void RejectItem(int itemId, string qaUsername, string comment)
         {
-            const string sql = @"UPDATE dbo.AwrRequestItem SET Remark = @Comment, Status = 'RejectedByQa' WHERE Id = @ItemId AND Status = 'PendingIssuance';";
             using (var connection = GetConnection())
             {
-                if (connection.Execute(sql, new { ItemId = itemId, Comment = comment }) == 0) throw new InvalidOperationException("Rejection failed.");
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        const string itemSql = @"
+                            UPDATE dbo.AwrRequestItem 
+                            SET Remark = @Comment, Status = 'RejectedByQa' 
+                            OUTPUT INSERTED.AwrRequestId
+                            WHERE Id = @ItemId AND Status = 'PendingIssuance';";
+
+                        int? headerId = connection.ExecuteScalar<int?>(itemSql, new { ItemId = itemId, Comment = comment }, transaction: transaction);
+
+                        if (headerId != null)
+                        {
+                            connection.Execute("UPDATE dbo.AwrRequest SET CurrentStatus = 'RejectedByQa' WHERE Id = @Id", new { Id = headerId }, transaction: transaction);
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch { transaction.Rollback(); throw; }
+                }
             }
         }
 

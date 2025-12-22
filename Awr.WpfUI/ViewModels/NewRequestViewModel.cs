@@ -20,7 +20,13 @@ namespace Awr.WpfUI.ViewModels
         private readonly IWorkflowService _service;
         private readonly string _username;
         private readonly string _csvPath;
-        private List<string> _masterAwrList = new List<string>();
+
+        private class AwrCsvRecord
+        {
+            public string FileName { get; set; }
+            public string ParentFolder { get; set; }
+        }
+        private List<AwrCsvRecord> _masterRecords = new List<AwrCsvRecord>();
 
         // --- Data ---
         public string RequestNo { get => _requestNo; set => SetProperty(ref _requestNo, value); }
@@ -36,6 +42,10 @@ namespace Awr.WpfUI.ViewModels
                 {
                     if (_selectedType == AwrType.RM) { IsQtyEnabled = true; }
                     else { IsQtyEnabled = false; QtyRequired = 1; }
+
+                    // Reset selection & Refilter
+                    AwrNo = "";
+                    FilterAwrList();
                 }
             }
         }
@@ -47,9 +57,16 @@ namespace Awr.WpfUI.ViewModels
         public string AwrNo
         {
             get => _awrNo;
-            set { if (SetProperty(ref _awrNo, value)) FilterAwrList(); }
+            set
+            {
+                // Only filter if value changed
+                if (SetProperty(ref _awrNo, value))
+                {
+                    FilterAwrList();
+                }
+            }
         }
-        private string _awrNo;
+        private string _awrNo = "";
 
         // --- QUANTITY ---
         public decimal QtyRequired { get => _qtyRequired; set => SetProperty(ref _qtyRequired, value); }
@@ -67,7 +84,7 @@ namespace Awr.WpfUI.ViewModels
         public string Comments { get => _comments; set => SetProperty(ref _comments, value); }
         private string _comments;
 
-        // --- ERROR STATES ---
+        // --- ERRORS ---
         private bool _isMaterialError; public bool IsMaterialError { get => _isMaterialError; set => SetProperty(ref _isMaterialError, value); }
         private bool _isBatchError; public bool IsBatchError { get => _isBatchError; set => SetProperty(ref _isBatchError, value); }
         private bool _isAwrError; public bool IsAwrError { get => _isAwrError; set => SetProperty(ref _isAwrError, value); }
@@ -93,20 +110,19 @@ namespace Awr.WpfUI.ViewModels
             _service = new WorkflowService();
             _csvPath = ConfigurationManager.AppSettings["AwrMasterCsvPath"];
 
-            SelectedType = AwrTypes.FirstOrDefault();
+            // Init Default Type (Triggering logic will happen after load)
+            _selectedType = AwrTypes.FirstOrDefault();
 
             SubmitCommand = new RelayCommand(async _ => await SubmitAsync(), _ => !IsBusy);
             IncrementQtyCommand = new RelayCommand(_ => QtyRequired++, _ => IsQtyEnabled);
             DecrementQtyCommand = new RelayCommand(_ => { if (QtyRequired > 1) QtyRequired--; }, _ => IsQtyEnabled && QtyRequired > 1);
 
-            // FIX: Do NOT generate sequence on load. Set placeholder.
             ResetFormState();
             LoadAwrFromCsv();
         }
 
         private void ResetFormState()
         {
-            // Sets a visual placeholder. The real number is fetched on Submit.
             RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-####";
             StatusMessage = "Ready for submission.";
         }
@@ -117,38 +133,101 @@ namespace Awr.WpfUI.ViewModels
             {
                 if (!string.IsNullOrEmpty(_csvPath) && File.Exists(_csvPath))
                 {
-                    _masterAwrList = File.ReadAllLines(_csvPath).Skip(1)
-                                         .Select(x => x.Split(',')[0].Trim().Trim('"'))
-                                         .Where(x => !string.IsNullOrWhiteSpace(x))
-                                         .OrderBy(x => x).ToList();
-                }
-                else { _masterAwrList = new List<string> { "CSV_MISSING CONTACT IT DEPARTMENT" }; }
+                    var lines = File.ReadAllLines(_csvPath);
+                    _masterRecords.Clear();
 
+                    foreach (var line in lines.Skip(1))
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        var parts = line.Split(',');
+
+                        if (parts.Length >= 2)
+                        {
+                            string fileName = parts[0].Trim().Trim('"');
+                            string parentFolder = "";
+
+                            // FIX: Scan backwards to find the last non-empty column.
+                            // This handles cases where CSV has trailing empty commas (e.g. "Name, Path, Folder, ,")
+                            for (int i = parts.Length - 1; i > 0; i--)
+                            {
+                                if (!string.IsNullOrWhiteSpace(parts[i]))
+                                {
+                                    parentFolder = parts[i].Trim().Trim('"');
+                                    break;
+                                }
+                            }
+
+                            _masterRecords.Add(new AwrCsvRecord
+                            {
+                                FileName = fileName,
+                                ParentFolder = parentFolder
+                            });
+                        }
+                    }
+                }
+                else { _masterRecords = new List<AwrCsvRecord>(); }
+
+                // Trigger Initial Filter
                 FilterAwrList();
             }
-            catch (Exception ex) { MessageBox.Show("CSV Error: " + ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Error loading CSV: " + ex.Message); }
         }
 
         private void FilterAwrList()
         {
-            if (_masterAwrList == null) return;
+            if (_masterRecords == null) return;
+
             string search = AwrNo?.ToLower() ?? "";
 
-            if (_masterAwrList.Any(x => x.Equals(AwrNo, StringComparison.OrdinalIgnoreCase))) return;
+            string folderKeyword = "";
+            switch (SelectedType)
+            {
+                case AwrType.FPS: folderKeyword = "FPS"; break;
+                case AwrType.IMS: folderKeyword = "FPS"; break;
+                case AwrType.MICRO: folderKeyword = "Micro"; break;
+                case AwrType.PM: folderKeyword = "PM"; break;
+                case AwrType.RM: folderKeyword = "RM"; break;
+                case AwrType.STABILITY: folderKeyword = "Stability"; break;
+                case AwrType.WATER: folderKeyword = "Water"; break;
+            }
 
-            var matches = _masterAwrList.Where(x => x.ToLower().Contains(search)).ToList();
+            // Optimization: If current text matches a valid file exactly, don't filter
+            if (_masterRecords.Any(r => r.FileName.Equals(AwrNo, StringComparison.OrdinalIgnoreCase))) return;
+
+            var query = _masterRecords.AsEnumerable();
+
+            // 1. Folder Keyword Check
+            if (!string.IsNullOrEmpty(folderKeyword))
+            {
+                query = query.Where(r => r.ParentFolder != null &&
+                                         r.ParentFolder.IndexOf(folderKeyword, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            // 2. Search Text
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(r => r.FileName.ToLower().Contains(search));
+            }
+
+            var results = query.Select(r => r.FileName).OrderBy(x => x).ToList();
+
             FilteredAwrNumbers.Clear();
-            foreach (var item in matches) FilteredAwrNumbers.Add(item);
+            if (results.Count == 0)
+            {
+                FilteredAwrNumbers.Add($"(No files found for {SelectedType})");
+            }
+            else
+            {
+                foreach (var item in results) FilteredAwrNumbers.Add(item);
+            }
         }
 
         private async Task SubmitAsync()
         {
             if (!ValidateForm()) return;
-
             IsBusy = true;
             try
             {
-                // 1. Check Duplicate
                 List<string> duplicates = await Task.Run(() => _service.CheckIfArNumberExists(ArNo.Trim(), null));
 
                 if (duplicates.Any())
@@ -156,12 +235,10 @@ namespace Awr.WpfUI.ViewModels
                     string msg = "WARNING: The AR Number(s) are active in previous requests:\n\n";
                     msg += string.Join("\n", duplicates.Take(10));
                     if (duplicates.Count > 10) msg += "\n...";
-                    msg += "\n\nContinue?";
-
-                    if (MessageBox.Show(msg, "Duplicate", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
+                    msg += "\n\nDo you want to continue?";
+                    if (MessageBox.Show(msg, "Duplicate Detected", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.No)
                     {
-                        IsBusy = false;
-                        return;
+                        IsBusy = false; return;
                     }
                 }
 
@@ -177,25 +254,22 @@ namespace Awr.WpfUI.ViewModels
                     }
                 };
 
-                // Pass "AUTO" or null, we get back the real ID
                 string finalId = await _service.SubmitNewRequestAsync(dto, _username, "AUTO");
 
                 MessageBox.Show($"Request Created Successfully!\n\nID: {finalId}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                // Success Path
                 RequestNo = finalId;
                 ClearForm();
-                ResetFormState(); // Sets StatusMessage = "Ready for submission."
+                ResetFormState();
             }
             catch (Exception ex)
             {
-                StatusMessage = "Failed."; // Error Path
+                StatusMessage = "Failed.";
                 MessageBox.Show(ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             finally
             {
                 IsBusy = false;
-                // SAFETY: If we are still stuck on "Submitting...", force reset.
                 if (StatusMessage == "Submitting...") StatusMessage = "Ready for submission.";
             }
         }
@@ -213,9 +287,9 @@ namespace Awr.WpfUI.ViewModels
             {
                 IsAwrError = true; missingFields.Add("- AWR No");
             }
-            else if (!_masterAwrList.Contains(AwrNo))
+            else if (!_masterRecords.Any(r => r.FileName == AwrNo))
             {
-                MessageBox.Show($"The selected AWR No '{AwrNo}' is invalid.\nPlease select a value from the list.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"The selected AWR No '{AwrNo}' is invalid.", "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
 
@@ -227,7 +301,6 @@ namespace Awr.WpfUI.ViewModels
                 MessageBox.Show(message, "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }
-
             return true;
         }
 

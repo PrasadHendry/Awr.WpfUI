@@ -20,6 +20,10 @@ namespace Awr.WpfUI.ViewModels
             set => SetProperty(ref _rejectComment, value);
         }
 
+        private bool _isRejectError;
+        public bool IsRejectError { get => _isRejectError; set => SetProperty(ref _isRejectError, value); }
+
+
         // --- Commands ---
         public ICommand ApproveCommand { get; }
         public ICommand RejectCommand { get; }
@@ -118,6 +122,8 @@ namespace Awr.WpfUI.ViewModels
 
         private async Task RejectAsync()
         {
+            IsRejectError = false;
+
             if (SelectedItem == null) return;
 
             // Validation: Comment is mandatory for rejection
