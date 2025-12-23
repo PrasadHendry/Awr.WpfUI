@@ -13,15 +13,20 @@ namespace Awr.Worker.Processors
     {
         private readonly AwrStampingDto _record;
         private static readonly object Missing = System.Reflection.Missing.Value;
+        
+        // --- SPECIFICATIONS (UPDATED) ---
+        // 1 cm = 28.35 points
 
-        // --- SPECIFICATIONS (From Screenshot) ---
-        // 1 cm = 28.3465 points
-        private const float PageMarginPt = 14.45f;     // 0.51 cm
-        private const float HeaderDistPt = 28.35f;     // 1 cm
-        private const float FooterDistPt = 28.35f;     // 1 cm
+        // 1. Page Margins (0.8 cm)
+        private const float PageMarginPt = 22.68f;
+        private const float HeaderDistPt = 22.68f;
+        private const float FooterDistPt = 22.68f;
 
-        private const float TargetHeightPt = 708.5f;   // 24.99 cm
-        private const float TargetWidthPt = 501f;      // 17.67 cm
+        // 2. Image Resizing (From New Screenshot)
+        // Height: 24.98 cm -> 708.18 pt
+        // Width:  18.99 cm -> 538.37 pt
+        private const float TargetHeightPt = 708.18f;
+        private const float TargetWidthPt = 538.37f;
 
         public DocumentProcessor(AwrStampingDto record)
         {
@@ -40,6 +45,7 @@ namespace Awr.Worker.Processors
         // ==========================================
         private void GenerateSecureDocument()
         {
+            // 1. Locate Source File
             string typeSubFolder = GetSubFolderForType(_record.AwrType);
             string searchDirectory = Path.Combine(WorkerConstants.SourceRoot, typeSubFolder);
             string sourceFilePath = FindTemplateFile(searchDirectory, _record.AwrNo);
@@ -47,11 +53,13 @@ namespace Awr.Worker.Processors
             if (string.IsNullOrEmpty(sourceFilePath))
                 throw new FileNotFoundException($"Template '{_record.AwrNo}' not found in: {typeSubFolder}");
 
+            // 2. Prepare Paths
             string extension = Path.GetExtension(sourceFilePath);
             string finalFileName = $"{_record.RequestNo}_{_record.AwrNo}{extension}";
             string finalFilePath = Path.Combine(WorkerConstants.FinalLocation, finalFileName);
             string tempFilePath = Path.Combine(WorkerConstants.TempLocation, Guid.NewGuid() + extension);
 
+            // 3. Copy to Temp
             File.Copy(sourceFilePath, tempFilePath, true);
 
             Word.Application wordApp = null;
@@ -65,32 +73,80 @@ namespace Awr.Worker.Processors
                 try { doc = wordApp.Documents.Open(tempFilePath, PasswordDocument: WorkerConstants.EncryptionPassword); }
                 catch { doc = wordApp.Documents.Open(tempFilePath); }
 
-                // 1. UNPROTECT
+                // 4. UNPROTECT
                 if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
                 {
                     try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
                 }
 
-                // 2. RESIZE & CENTER
+                // 5. RESIZE & CENTER (Uses updated dimensions 24.98cm x 18.99cm)
                 SanitizeDocumentLayout(doc);
 
-                // 3. STAMP
+                // 6. APPLY STAMPS
                 foreach (Word.Section section in doc.Sections)
                 {
+                    // =========================================================
+                    // HEADER: Dark Blue Box "Stamp" (Fully Right Aligned)
+                    // =========================================================
                     var headerRange = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                    headerRange.Text = _record.GetHeaderText();
-                    headerRange.Font.Name = "Calibri";
-                    headerRange.Font.Size = 8;
-                    headerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
+                    headerRange.Delete(); // Clear existing
 
+                    // Create 1x1 Table for the Box
+                    Word.Table stampTable = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary]
+                        .Range.Tables.Add(headerRange, 1, 1);
+
+                    // FORCE RIGHT ALIGNMENT
+                    // This pushes the table to the absolute right margin
+                    stampTable.Rows.Alignment = Word.WdRowAlignment.wdAlignRowRight;
+
+                    // Reset Indents to ensure it touches the margin
+                    stampTable.Range.ParagraphFormat.RightIndent = 0;
+                    stampTable.Range.ParagraphFormat.LeftIndent = 0;
+
+                    // Fit the box tightly to text
+                    stampTable.AutoFitBehavior(Word.WdAutoFitBehavior.wdAutoFitContent);
+
+                    // Box Border Styling
+                    stampTable.Borders.Enable = 1;
+                    stampTable.Borders.OutsideColor = Word.WdColor.wdColorDarkBlue;
+                    stampTable.Borders.OutsideLineWidth = Word.WdLineWidth.wdLineWidth150pt; // Thick
+                    stampTable.Borders.OutsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
+
+                    // Text Content & Styling
+                    stampTable.Range.Text = _record.GetHeaderText();
+                    stampTable.Range.Font.Name = "Arial";
+                    stampTable.Range.Font.Size = 7; // Size 7
+                    stampTable.Range.Font.Bold = 1;
+                    stampTable.Range.Font.Color = Word.WdColor.wdColorDarkBlue;
+
+                    // Center text *inside* the box
+                    stampTable.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
+                    stampTable.Range.ParagraphFormat.SpaceAfter = 0;
+
+                    // =========================================================
+                    // FOOTER: Digital Style with Top Line (Right Aligned)
+                    // =========================================================
                     var footerRange = section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
                     footerRange.Text = _record.GetFooterText();
-                    footerRange.Font.Name = "Calibri";
-                    footerRange.Font.Size = 8;
-                    footerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
+
+                    // Text Styling
+                    footerRange.Font.Name = "Consolas";
+                    footerRange.Font.Size = 7; // Size 7
+                    footerRange.Font.Color = Word.WdColor.wdColorBlack;
+                    footerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight; // Right Align
+
+                    // Gray Separator Line (Top)
+                    footerRange.Borders[Word.WdBorderType.wdBorderTop].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
+                    footerRange.Borders[Word.WdBorderType.wdBorderTop].LineWidth = Word.WdLineWidth.wdLineWidth050pt;
+                    footerRange.Borders[Word.WdBorderType.wdBorderTop].Color = Word.WdColor.wdColorGray50;
+
+                    // Clear other borders
+                    footerRange.Borders[Word.WdBorderType.wdBorderBottom].LineStyle = Word.WdLineStyle.wdLineStyleNone;
+                    footerRange.Borders[Word.WdBorderType.wdBorderLeft].LineStyle = Word.WdLineStyle.wdLineStyleNone;
+                    footerRange.Borders[Word.WdBorderType.wdBorderRight].LineStyle = Word.WdLineStyle.wdLineStyleNone;
                 }
 
-                // 4. PROTECT & SAVE
+                // 7. PROTECT & SAVE
                 doc.Password = WorkerConstants.EncryptionPassword;
                 if (doc.ProtectionType == Word.WdProtectionType.wdNoProtection)
                 {
@@ -102,8 +158,8 @@ namespace Awr.Worker.Processors
             }
             finally
             {
-                if (doc != null) { doc.Close(false); Marshal.ReleaseComObject(doc); }
-                if (wordApp != null) { wordApp.Quit(); Marshal.ReleaseComObject(wordApp); Program.ActiveWordApps.Remove(wordApp); }
+                if (doc != null) { try { doc.Close(false); } catch { } Marshal.ReleaseComObject(doc); }
+                if (wordApp != null) { try { wordApp.Quit(); } catch { } Marshal.ReleaseComObject(wordApp); Program.ActiveWordApps.Remove(wordApp); }
                 if (File.Exists(tempFilePath)) File.Delete(tempFilePath);
             }
         }

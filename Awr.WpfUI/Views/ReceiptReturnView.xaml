@@ -86,7 +86,7 @@
                     <DataGridTextColumn Header="Requested By" Binding="{Binding RequestedBy}" Width="150" ElementStyle="{StaticResource CenterAlignedStyle}"/>
 
                     <DataGridTextColumn Header="Approved By" Binding="{Binding IssuedBy}" Width="150" ElementStyle="{StaticResource CenterAlignedStyle}"/>
-                    <DataGridTemplateColumn Header="Approved Date" Width="150">
+                    <DataGridTemplateColumn Header="Approved Date" Width="*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding IssuedAt, StringFormat=dd-MM-yyyy HH:mm}" TextWrapping="Wrap" Padding="2,5" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>

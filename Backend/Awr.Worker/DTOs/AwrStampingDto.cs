@@ -29,28 +29,21 @@ namespace Awr.Worker.DTOs
         // Helpers
         public string FinalActionDateText => DateTime.Now.ToString(Configuration.WorkerConstants.DateTimeFormat);
 
-        // --- NEW HEADER FORMAT ---
-        // (material/product) / batch no. / AR No.
-        // Qty Issued: (Qty)
-        // AWR No.: ...
-        // CONTROLLED DOCUMENT...
+        // --- UPDATED HEADER (Request Info + Stamp) ---
         public string GetHeaderText()
-        {
-            return $"{MaterialProduct} / {BatchNo} / {ArNo}\n" +
-                   $"Qty Issued: {QtyIssued:0}\n" +
-                   $"AWR No.: {AwrNo}\n" +
-                   $"CONTROLLED DOCUMENT - ISSUED COPY (S/W)";
-        }
-
-        // --- NEW FOOTER FORMAT ---
-        // Request No: ...
-        // Issued By (QA): ... on ...
-        // Status: Approved (Issued) | Processed On: ...
-        public string GetFooterText()
         {
             return $"Request No: {RequestNo}\n" +
                    $"Issued By (QA): {IssuedByUsername} on {FinalActionDateText}\n" +
-                   $"Status: Approved (Issued) | Processed On: {FinalActionDateText}";
+                   $"Status: Approved (Issued) | Processed On: {FinalActionDateText}\n" +
+                   $"CONTROLLED DOCUMENT - ISSUED COPY (S/W)";
+        }
+
+        // --- UPDATED FOOTER (Material Info) ---
+        public string GetFooterText()
+        {
+            return $"{MaterialProduct} / {BatchNo} / {ArNo}\n" +
+                   $"Qty Issued: {QtyIssued:0}\n" +
+                   $"AWR No.: {AwrNo}";
         }
 
         public string GetReceiptText() =>
