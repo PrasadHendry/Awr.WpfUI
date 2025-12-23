@@ -136,7 +136,7 @@
                 <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="140" FontWeight="SemiBold" ElementStyle="{StaticResource CenterAlignedStyle}"/>
 
                 <!-- AWR No (Left) -->
-                <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="140" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="200" ElementStyle="{StaticResource WrappedColumnStyle}"/>
 
                 <!-- Type (Center) -->
                 <DataGridTextColumn Header="Type" Binding="{Binding AwrType}" Width="80" ElementStyle="{StaticResource CenterAlignedStyle}"/>

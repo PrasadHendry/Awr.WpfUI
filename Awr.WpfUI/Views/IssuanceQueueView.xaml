@@ -109,10 +109,10 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="160" FontWeight="Bold" ElementStyle="{StaticResource WrappedColumnStyle}"/>
-                    <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="160" ElementStyle="{StaticResource WrappedColumnStyle}"/>
+                    <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="200" ElementStyle="{StaticResource WrappedColumnStyle}"/>
                     <DataGridTextColumn Header="Qty Required" Binding="{Binding QtyRequired, StringFormat=0}" Width="120" ElementStyle="{StaticResource CenterAlignedStyle}"/>
                     <DataGridTextColumn Header="Prepared By (QC)" Binding="{Binding RequestedBy}" Width="200" ElementStyle="{StaticResource CenterAlignedStyle}"/>
-                    <DataGridTemplateColumn Header="Date" Width="*">
+                    <DataGridTemplateColumn Header="Date" Width="150">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding RequestedAt, StringFormat=dd-MM-yyyy HH:mm}" TextWrapping="Wrap" Padding="2,5" VerticalAlignment="Center"/>

@@ -75,7 +75,7 @@
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="150" FontWeight="Bold" ElementStyle="{StaticResource CenterAlignedStyle}"/>
-                    <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="150" ElementStyle="{StaticResource LeftAlignedStyle}"/>
+                    <DataGridTextColumn Header="AWR No." Binding="{Binding AwrNo}" Width="200" ElementStyle="{StaticResource LeftAlignedStyle}"/>
                     <DataGridTextColumn Header="Qty Issued" Binding="{Binding QtyIssued, StringFormat=0}" Width="90" ElementStyle="{StaticResource CenterAlignedStyle}"/>
                     <DataGridTextColumn Header="Type" Binding="{Binding AwrType}" Width="80" ElementStyle="{StaticResource CenterAlignedStyle}"/>
                     <DataGridTextColumn Header="Material/Product" Binding="{Binding MaterialProduct}" Width="250" ElementStyle="{StaticResource LeftAlignedStyle}"/>
@@ -86,7 +86,7 @@
                     <DataGridTextColumn Header="Requested By" Binding="{Binding RequestedBy}" Width="150" ElementStyle="{StaticResource CenterAlignedStyle}"/>
 
                     <DataGridTextColumn Header="Approved By" Binding="{Binding IssuedBy}" Width="150" ElementStyle="{StaticResource CenterAlignedStyle}"/>
-                    <DataGridTemplateColumn Header="Approved Date" Width="*">
+                    <DataGridTemplateColumn Header="Approved Date" Width="150">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding IssuedAt, StringFormat=dd-MM-yyyy HH:mm}" TextWrapping="Wrap" Padding="2,5" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"/>
