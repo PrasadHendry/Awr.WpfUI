@@ -341,7 +341,7 @@ namespace Awr.Worker.Processors
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.InsertParagraphAfter();
-                range.Text = "\nI hereby acknowledge receipt of the controlled documents listed above.\n\n\n";
+                range.Text = "\nI hereby acknowledge receipt of the controlled document(s) listed above.\n\n\n";
                 range.Font.Name = "Calibri";
                 range.Font.Size = 9;
                 range.Font.Bold = 0;
