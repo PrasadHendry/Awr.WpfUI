@@ -105,7 +105,7 @@
                       ScrollViewer.HorizontalScrollBarVisibility="Visible" 
                       ScrollViewer.VerticalScrollBarVisibility="Visible"
                       BorderBrush="#CCC" BorderThickness="1" Background="White" 
-                      RowHeight="40" FrozenColumnCount="2">
+                      RowHeight="60" FrozenColumnCount="2">
 
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Request No." Binding="{Binding RequestNo}" Width="160" FontWeight="Bold" ElementStyle="{StaticResource WrappedColumnStyle}"/>
