@@ -12,12 +12,12 @@
 
         public const string SourceRoot = @"\\192.15.15.100\AWR Issuance"; // AWR - DOC source folder
         public const string TempLocation = @"\\192.15.15.100\AWR Issuance\Working"; // TEMP working - folder for process isolation
-        public const string FinalLocation = @"\\192.15.15.100\AWR Request\FinalIssuedDocs"; // Where QA generated docs live
-
+        public const string FinalLocation = @"\\192.15.15.100\AWR Request\FinalIssuedDocs"; // Where QA generated docs live OG
+        //public const string FinalLocation = @"\\192.15.15.100\AWR Request\FinalIssuedDocs\TEST"; // TESTING LOCATION
 
         // Security
         public const string EncryptionPassword = "QA";
-        public const string RestrictEditPassword = "test123";
+        public const string RestrictEditPassword = "logitech";
 
         // Resilience
         public const int MaxRetries = 3;

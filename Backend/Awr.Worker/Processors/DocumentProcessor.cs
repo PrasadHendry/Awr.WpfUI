@@ -2,6 +2,8 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Printing;       // [REQUIRED] Add Reference: System.Printing
+using System.Windows.Forms;  // [REQUIRED] Add Reference: System.Windows.Forms
 using Awr.Core.Enums;
 using Awr.Worker.Configuration;
 using Awr.Worker.DTOs;
@@ -13,7 +15,7 @@ namespace Awr.Worker.Processors
     {
         private readonly AwrStampingDto _record;
         private static readonly object Missing = System.Reflection.Missing.Value;
-        
+
         // --- SPECIFICATIONS (UPDATED) ---
         // 1 cm = 28.35 points
 
@@ -96,7 +98,6 @@ namespace Awr.Worker.Processors
                         .Range.Tables.Add(headerRange, 1, 1);
 
                     // FORCE RIGHT ALIGNMENT
-                    // This pushes the table to the absolute right margin
                     stampTable.Rows.Alignment = Word.WdRowAlignment.wdAlignRowRight;
 
                     // Reset Indents to ensure it touches the margin
@@ -228,7 +229,7 @@ namespace Awr.Worker.Processors
         }
 
         // ==========================================
-        // 2. QC PRINTING
+        // 2. QC PRINTING (UPDATED WITH DIALOG + FORCE 1-SIDED)
         // ==========================================
         private void PrintSecureDocument()
         {
@@ -237,6 +238,35 @@ namespace Awr.Worker.Processors
 
             if (string.IsNullOrEmpty(filePath)) throw new FileNotFoundException($"File not found: {fileNameBase}");
 
+            // -----------------------------------------------------------------
+            // STEP A: Prompt User for Printer (System.Windows.Forms)
+            // -----------------------------------------------------------------
+            string selectedPrinterName = null;
+            PrintDialog printDialog = new PrintDialog();
+            printDialog.AllowSomePages = false; // Force full document
+            printDialog.AllowSelection = false;
+
+            // Note: Since this runs in the Worker Console, ensure it is invoked
+            // on a session that can show UI (User Desktop).
+            if (printDialog.ShowDialog() == DialogResult.OK)
+            {
+                selectedPrinterName = printDialog.PrinterSettings.PrinterName;
+            }
+            else
+            {
+                // If user clicks Cancel, we abort.
+                // Throwing an exception ensures the DB status doesn't change to "Completed"
+                throw new Exception("Printing Cancelled by User.");
+            }
+
+            // -----------------------------------------------------------------
+            // STEP B: Force Printer Settings (System.Printing)
+            // -----------------------------------------------------------------
+            ForcePrinterSettings(selectedPrinterName);
+
+            // -----------------------------------------------------------------
+            // STEP C: Word Automation
+            // -----------------------------------------------------------------
             Word.Application wordApp = null;
             Word.Document doc = null;
 
@@ -245,16 +275,25 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies)...");
+                // Explicitly set the Word Application to use the selected printer
+                wordApp.ActivePrinter = selectedPrinterName;
+
+                Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies) to {selectedPrinterName}...");
+
                 doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
 
                 int copies = (int)_record.QtyIssued;
                 if (copies < 1) copies = 1;
+
+                // Word uses the ActivePrinter set above.
+                // The Printer Driver now has the "OneSided" ticket forced.
                 doc.PrintOut(Background: false, Copies: copies);
+
                 doc.Close(false);
                 Marshal.ReleaseComObject(doc); doc = null;
 
-                PrintReceiptTable(wordApp);
+                // Pass the printer name to the receipt function
+                PrintReceiptTable(wordApp, selectedPrinterName);
             }
             finally
             {
@@ -263,13 +302,57 @@ namespace Awr.Worker.Processors
             }
         }
 
-        private void PrintReceiptTable(Word.Application wordApp)
+        /// <summary>
+        /// Modifies the Print Ticket of the selected printer to enforce A4 and One-Sided printing.
+        /// </summary>
+        private void ForcePrinterSettings(string printerName)
+        {
+            try
+            {
+                using (LocalPrintServer printServer = new LocalPrintServer())
+                {
+                    using (PrintQueue queue = printServer.GetPrintQueue(printerName))
+                    {
+                        // 1. Get the User's current Ticket
+                        PrintTicket userTicket = queue.UserPrintTicket;
+
+                        // 2. Force One Sided (Simplex)
+                        if (userTicket.Duplexing.HasValue)
+                        {
+                            userTicket.Duplexing = Duplexing.OneSided;
+                            Console.WriteLine(" > Enforced: One-Sided Print");
+                        }
+
+                        // 3. Force A4
+                        if (userTicket.PageMediaSize != null)
+                        {
+                            userTicket.PageMediaSize = new PageMediaSize(PageMediaSizeName.ISOA4);
+                            Console.WriteLine(" > Enforced: A4 Paper Size");
+                        }
+
+                        // 4. Commit changes to the queue for this session
+                        queue.UserPrintTicket = userTicket;
+                        queue.Commit();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($" ! Warning: Could not enforce printer settings (Driver restrictions?): {ex.Message}");
+                // We do not throw here to allow printing to continue even if enforcing fails.
+            }
+        }
+
+        private void PrintReceiptTable(Word.Application wordApp, string printerName)
         {
             Console.WriteLine(" > Printing Receipt...");
             Word.Document doc = wordApp.Documents.Add();
 
             try
             {
+                // Ensure Receipt uses the same printer
+                wordApp.ActivePrinter = printerName;
+
                 // Narrow Margins for Receipt
                 doc.PageSetup.TopMargin = 36;
                 doc.PageSetup.BottomMargin = 36;
