@@ -229,7 +229,7 @@ namespace Awr.Worker.Processors
         }
 
         // ==========================================
-        // 2. QC PRINTING (UPDATED WITH DIALOG + FORCE 1-SIDED)
+        // 2. QC PRINTING (SEQUENCE CHANGED: RECEIPT FIRST)
         // ==========================================
         private void PrintSecureDocument()
         {
@@ -239,28 +239,24 @@ namespace Awr.Worker.Processors
             if (string.IsNullOrEmpty(filePath)) throw new FileNotFoundException($"File not found: {fileNameBase}");
 
             // -----------------------------------------------------------------
-            // STEP A: Prompt User for Printer (System.Windows.Forms)
+            // STEP A: Prompt User for Printer
             // -----------------------------------------------------------------
             string selectedPrinterName = null;
             PrintDialog printDialog = new PrintDialog();
-            printDialog.AllowSomePages = false; // Force full document
+            printDialog.AllowSomePages = false;
             printDialog.AllowSelection = false;
 
-            // Note: Since this runs in the Worker Console, ensure it is invoked
-            // on a session that can show UI (User Desktop).
             if (printDialog.ShowDialog() == DialogResult.OK)
             {
                 selectedPrinterName = printDialog.PrinterSettings.PrinterName;
             }
             else
             {
-                // If user clicks Cancel, we abort.
-                // Throwing an exception ensures the DB status doesn't change to "Completed"
                 throw new Exception("Printing Cancelled by User.");
             }
 
             // -----------------------------------------------------------------
-            // STEP B: Force Printer Settings (System.Printing)
+            // STEP B: Force Printer Settings (Simplex + A4)
             // -----------------------------------------------------------------
             ForcePrinterSettings(selectedPrinterName);
 
@@ -275,9 +271,19 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                // Explicitly set the Word Application to use the selected printer
+                // Explicitly set the printer
                 wordApp.ActivePrinter = selectedPrinterName;
 
+                // -------------------------------------------------------------
+                // 1. PRINT RECEIPT (MOVED TO TOP)
+                // -------------------------------------------------------------
+                // We print this first so the QC officer gets the receipt paper 
+                // on top of the pile (or first out of the tray).
+                PrintReceiptTable(wordApp, selectedPrinterName);
+
+                // -------------------------------------------------------------
+                // 2. PRINT MAIN DOCUMENT
+                // -------------------------------------------------------------
                 Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies) to {selectedPrinterName}...");
 
                 doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
@@ -285,15 +291,11 @@ namespace Awr.Worker.Processors
                 int copies = (int)_record.QtyIssued;
                 if (copies < 1) copies = 1;
 
-                // Word uses the ActivePrinter set above.
-                // The Printer Driver now has the "OneSided" ticket forced.
+                // The Printer Driver now has the "OneSided" ticket forced from Step B
                 doc.PrintOut(Background: false, Copies: copies);
 
                 doc.Close(false);
                 Marshal.ReleaseComObject(doc); doc = null;
-
-                // Pass the printer name to the receipt function
-                PrintReceiptTable(wordApp, selectedPrinterName);
             }
             finally
             {
