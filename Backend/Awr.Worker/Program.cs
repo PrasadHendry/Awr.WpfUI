@@ -26,6 +26,8 @@ namespace Awr.Worker
             }
         }
 
+        // [CRITICAL FIX] This is required for PrintDialog to show up
+        [STAThread]
         static int Main(string[] args)
         {
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -33,7 +35,6 @@ namespace Awr.Worker
 
             if (args.Length < 2) return WorkerConstants.FailureExitCode;
 
-            // Args[0] is unused now (was filename), we rely on JSON
             string base64JsonInput = args[1];
 
             try
@@ -56,6 +57,13 @@ namespace Awr.Worker
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Error (Attempt {i}): {ex.Message}");
+
+                        // [FIX] If user manually cancelled, do not retry 3 times.
+                        if (ex.Message.Contains("Cancelled"))
+                        {
+                            return WorkerConstants.FailureExitCode;
+                        }
+
                         Thread.Sleep(2000);
                     }
                 }
