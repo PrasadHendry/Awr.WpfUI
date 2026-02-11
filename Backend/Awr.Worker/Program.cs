@@ -26,7 +26,7 @@ namespace Awr.Worker
             }
         }
 
-        // [CRITICAL FIX] This is required for PrintDialog to show up
+        // [CRITICAL] This attribute is REQUIRED for the Print Dialog to appear.
         [STAThread]
         static int Main(string[] args)
         {
@@ -35,6 +35,7 @@ namespace Awr.Worker
 
             if (args.Length < 2) return WorkerConstants.FailureExitCode;
 
+            // Args[0] is unused now (was filename), we rely on JSON
             string base64JsonInput = args[1];
 
             try
@@ -58,7 +59,7 @@ namespace Awr.Worker
                     {
                         Console.WriteLine($"Error (Attempt {i}): {ex.Message}");
 
-                        // [FIX] If user manually cancelled, do not retry 3 times.
+                        // If user clicked "Cancel" in the Print Dialog, stop retrying.
                         if (ex.Message.Contains("Cancelled"))
                         {
                             return WorkerConstants.FailureExitCode;

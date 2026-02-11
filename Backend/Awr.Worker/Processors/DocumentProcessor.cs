@@ -229,7 +229,7 @@ namespace Awr.Worker.Processors
         }
 
         // ==========================================
-        // 2. QC PRINTING (SEQUENCE CHANGED: RECEIPT FIRST)
+        // 2. QC PRINTING (SEQUENCE: DOC FIRST -> RECEIPT LAST)
         // ==========================================
         private void PrintSecureDocument()
         {
@@ -246,6 +246,7 @@ namespace Awr.Worker.Processors
             printDialog.AllowSomePages = false;
             printDialog.AllowSelection = false;
 
+            // Note: Ensure [STAThread] is in Program.cs for this to show!
             if (printDialog.ShowDialog() == DialogResult.OK)
             {
                 selectedPrinterName = printDialog.PrinterSettings.PrinterName;
@@ -275,14 +276,7 @@ namespace Awr.Worker.Processors
                 wordApp.ActivePrinter = selectedPrinterName;
 
                 // -------------------------------------------------------------
-                // 1. PRINT RECEIPT (MOVED TO TOP)
-                // -------------------------------------------------------------
-                // We print this first so the QC officer gets the receipt paper 
-                // on top of the pile (or first out of the tray).
-                PrintReceiptTable(wordApp, selectedPrinterName);
-
-                // -------------------------------------------------------------
-                // 2. PRINT MAIN DOCUMENT
+                // 1. PRINT MAIN DOCUMENT (FIRST)
                 // -------------------------------------------------------------
                 Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies) to {selectedPrinterName}...");
 
@@ -294,8 +288,16 @@ namespace Awr.Worker.Processors
                 // The Printer Driver now has the "OneSided" ticket forced from Step B
                 doc.PrintOut(Background: false, Copies: copies);
 
+                // CLOSE the main document immediately after sending to spooler
                 doc.Close(false);
-                Marshal.ReleaseComObject(doc); doc = null;
+                Marshal.ReleaseComObject(doc);
+                doc = null;
+
+                // -------------------------------------------------------------
+                // 2. PRINT RECEIPT (LAST)
+                // -------------------------------------------------------------
+                // Now that the main doc is closed, we use the same Word App to print the receipt
+                PrintReceiptTable(wordApp, selectedPrinterName);
             }
             finally
             {

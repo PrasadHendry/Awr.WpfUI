@@ -88,19 +88,19 @@ namespace Awr.WpfUI.Services.Implementation
         }
 
         // --- Queue Retrieval ---
-        public async Task<List<AwrItemQueueDto>> GetIssuanceQueueAsync() => 
+        public async Task<List<AwrItemQueueDto>> GetIssuanceQueueAsync() =>
             await Task.Run(() => _repository.GetItemsForIssuanceQueue());
 
-        public async Task<List<AwrItemQueueDto>> GetReceiptQueueAsync(string username) => 
+        public async Task<List<AwrItemQueueDto>> GetReceiptQueueAsync(string username) =>
             await Task.Run(() => _repository.GetItemsForReceiptQueue(username));
 
-        public async Task<List<AwrItemQueueDto>> GetReturnQueueAsync(string username) => 
+        public async Task<List<AwrItemQueueDto>> GetReturnQueueAsync(string username) =>
             await Task.Run(() => _repository.GetItemsForReturnQueue(username));
 
-        public async Task<List<AwrItemQueueDto>> GetAllAuditItemsAsync() => 
+        public async Task<List<AwrItemQueueDto>> GetAllAuditItemsAsync() =>
             await Task.Run(() => _repository.GetAllAuditItems());
 
-        public async Task<List<AwrItemQueueDto>> GetMySubmittedItemsAsync(string username) => 
+        public async Task<List<AwrItemQueueDto>> GetMySubmittedItemsAsync(string username) =>
             await Task.Run(() => _repository.GetMySubmittedItems(username));
 
         // --- Workflow Actions ---
@@ -110,9 +110,8 @@ namespace Awr.WpfUI.Services.Implementation
             await Task.Run(() =>
             {
                 // 1. Trigger Worker (Generate)
-                // Note: We haven't updated DB yet, so we use the passed 'qtyIssued' logic inside ProcessWorkerAction implicitly or rely on QtyRequired mapping
                 ProcessWorkerAction(itemId, qaUsername, WorkerConstants.ModeGenerate);
-                
+
                 // 2. Update DB
                 _repository.IssueItem(itemId, qtyIssued, qaUsername);
             });
@@ -123,9 +122,11 @@ namespace Awr.WpfUI.Services.Implementation
             await Task.Run(() =>
             {
                 // 1. Trigger Worker (Print)
+                // If the user Cancels the Print Dialog, this method will THROW an exception.
+                // This stops the code here, so step 2 (Update DB) never happens.
                 ProcessWorkerAction(itemId, qcUsername, WorkerConstants.ModePrint);
-                
-                // 2. Update DB
+
+                // 2. Update DB (Only happens if Print was successful)
                 _repository.ReceiveItem(itemId, qcUsername);
             });
         }
@@ -185,16 +186,28 @@ namespace Awr.WpfUI.Services.Implementation
                 WindowStyle = ProcessWindowStyle.Normal, // Ensure it's visible
 
                 // Do NOT redirect output if you want the user to see the live console window.
-                // Redirecting output usually hides the window or captures the text internally.
                 RedirectStandardOutput = false
             };
 
             using (var process = Process.Start(startInfo))
             {
                 if (process == null) throw new Exception("Failed to launch Worker.");
+
                 process.WaitForExit();
+
+                // --- UPDATED ERROR HANDLING LOGIC ---
                 if (process.ExitCode != WorkerConstants.SuccessExitCode)
+                {
+                    // If we are in Print Mode and it failed, it's 99% likely the user clicked Cancel on the Dialog.
+                    // We throw a specific message so the UI can look cleaner.
+                    if (mode == WorkerConstants.ModePrint)
+                    {
+                        throw new Exception("Printing Cancelled by User.");
+                    }
+
+                    // Otherwise, it's a real crash/error
                     throw new Exception($"Worker failed. Exit Code: {process.ExitCode}");
+                }
             }
         }
 
