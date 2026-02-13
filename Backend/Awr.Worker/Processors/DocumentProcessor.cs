@@ -229,7 +229,7 @@ namespace Awr.Worker.Processors
         }
 
         // ==========================================
-        // 2. QC PRINTING (SEQUENCE: DOC FIRST -> RECEIPT LAST)
+        // 2. QC PRINTING (OFFICE 2013-2024 COMPATIBLE)
         // ==========================================
         private void PrintSecureDocument()
         {
@@ -238,15 +238,12 @@ namespace Awr.Worker.Processors
 
             if (string.IsNullOrEmpty(filePath)) throw new FileNotFoundException($"File not found: {fileNameBase}");
 
-            // -----------------------------------------------------------------
-            // STEP A: Prompt User for Printer
-            // -----------------------------------------------------------------
+            // --- STEP A: Printer Selection ---
             string selectedPrinterName = null;
             PrintDialog printDialog = new PrintDialog();
             printDialog.AllowSomePages = false;
             printDialog.AllowSelection = false;
 
-            // Note: Ensure [STAThread] is in Program.cs for this to show!
             if (printDialog.ShowDialog() == DialogResult.OK)
             {
                 selectedPrinterName = printDialog.PrinterSettings.PrinterName;
@@ -256,14 +253,10 @@ namespace Awr.Worker.Processors
                 throw new Exception("Printing Cancelled by User.");
             }
 
-            // -----------------------------------------------------------------
-            // STEP B: Force Printer Settings (Simplex + A4)
-            // -----------------------------------------------------------------
+            // --- STEP B: Force Settings (Simplex/A4) ---
             ForcePrinterSettings(selectedPrinterName);
 
-            // -----------------------------------------------------------------
-            // STEP C: Word Automation
-            // -----------------------------------------------------------------
+            // --- STEP C: Word Automation ---
             Word.Application wordApp = null;
             Word.Document doc = null;
 
@@ -272,33 +265,44 @@ namespace Awr.Worker.Processors
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
 
-                // Explicitly set the printer
+                // FUTURE PROOFING: Disable "Reading Mode" and "Start Screen"
+                wordApp.Options.AllowReadingMode = false;
                 wordApp.ActivePrinter = selectedPrinterName;
 
-                // -------------------------------------------------------------
-                // 1. PRINT MAIN DOCUMENT (FIRST)
-                // -------------------------------------------------------------
                 Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies) to {selectedPrinterName}...");
 
-                doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
+                // 1. OPEN MAIN DOC
+                doc = wordApp.Documents.Open(filePath,
+                    PasswordDocument: WorkerConstants.EncryptionPassword,
+                    ReadOnly: true,
+                    AddToRecentFiles: false);
+
+                // OFFICE 2013-2024 FIX: Force the document into Print View context
+                try
+                {
+                    if (wordApp.ActiveWindow != null)
+                        wordApp.ActiveWindow.View.Type = Word.WdViewType.wdPrintView;
+                }
+                catch { /* Ignore if window not ready */ }
 
                 int copies = (int)_record.QtyIssued;
                 if (copies < 1) copies = 1;
 
-                // The Printer Driver now has the "OneSided" ticket forced from Step B
+                // 2. PRINT MAIN DOC
                 doc.PrintOut(Background: false, Copies: copies);
 
-                // CLOSE the main document immediately after sending to spooler
+                // 3. CLEAN UP MAIN DOC (Crucial for resetting Word state)
                 doc.Close(false);
                 Marshal.ReleaseComObject(doc);
                 doc = null;
 
-                // -------------------------------------------------------------
-                // 2. PRINT RECEIPT (LAST)
-                // -------------------------------------------------------------
-                // Now that the main doc is closed, we use the same Word App to print the receipt
+                // Brief pause to allow Word engine to clear the file lock
+                System.Threading.Thread.Sleep(500);
+
+                // 4. PRINT RECEIPT
                 PrintReceiptTable(wordApp, selectedPrinterName);
             }
+
             finally
             {
                 if (doc != null) { try { doc.Close(false); } catch { } Marshal.ReleaseComObject(doc); }
@@ -350,14 +354,25 @@ namespace Awr.Worker.Processors
         private void PrintReceiptTable(Word.Application wordApp, string printerName)
         {
             Console.WriteLine(" > Printing Receipt...");
-            Word.Document doc = wordApp.Documents.Add();
-
+            
+            // Ensure Word knows which printer to use for the new document
+            wordApp.ActivePrinter = printerName;
+            
+            Word.Document doc = null;
             try
             {
-                // Ensure Receipt uses the same printer
-                wordApp.ActivePrinter = printerName;
+                // OFFICE 2013 FIX: Standard 'Add' works now because Reading Mode is disabled
+                doc = wordApp.Documents.Add();
 
-                // Narrow Margins for Receipt
+                // Force Print View on the Receipt doc as well
+                try
+                {
+                    if (wordApp.ActiveWindow != null)
+                        wordApp.ActiveWindow.View.Type = Word.WdViewType.wdPrintView;
+                }
+                catch { }
+
+                // Narrow Margins for Receipt (0.5 inch / 36 pt)
                 doc.PageSetup.TopMargin = 36;
                 doc.PageSetup.BottomMargin = 36;
                 doc.PageSetup.LeftMargin = 36;
@@ -365,6 +380,7 @@ namespace Awr.Worker.Processors
 
                 var range = doc.Range();
 
+                // --- RECEIPT HEADER ---
                 range.Text = "SIGMA LABORATORIES PRIVATE LIMITED\n";
                 range.Font.Name = "Calibri";
                 range.Font.Size = 12;
@@ -392,25 +408,29 @@ namespace Awr.Worker.Processors
                 range.Font.Underline = Word.WdUnderline.wdUnderlineNone;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
 
+                // --- RECEIPT TABLE (10 Rows, 2 Columns) ---
                 Word.Table table = doc.Tables.Add(range, 10, 2);
                 table.Borders.Enable = 1;
                 table.Borders.OutsideLineWidth = Word.WdLineWidth.wdLineWidth150pt;
                 table.PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
                 table.PreferredWidth = 100;
+                
                 table.Columns[1].PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
-                table.Columns[1].PreferredWidth = 30;
+                table.Columns[1].PreferredWidth = 35;
                 table.Columns[2].PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
-                table.Columns[2].PreferredWidth = 70;
+                table.Columns[2].PreferredWidth = 65;
+
                 table.Range.Font.Name = "Calibri";
                 table.Range.Font.Size = 10;
                 table.Range.ParagraphFormat.SpaceAfter = 3;
                 table.Rows.WrapAroundText = 0;
 
+                // Local helper to fill rows
                 void AddRow(int r, string k, string v)
                 {
                     table.Cell(r, 1).Range.Text = k;
                     table.Cell(r, 1).Range.Font.Bold = 1;
-                    table.Cell(r, 2).Range.Text = v;
+                    table.Cell(r, 2).Range.Text = v ?? "N/A";
                     table.Cell(r, 2).WordWrap = true;
                 }
 
@@ -425,6 +445,7 @@ namespace Awr.Worker.Processors
                 AddRow(9, "Received By (QC):", _record.PrintedByUsername);
                 AddRow(10, "Timestamp (Print):", _record.FinalActionDateText);
 
+                // --- FOOTER ACKNOWLEDGMENT ---
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.InsertParagraphAfter();
@@ -441,15 +462,18 @@ namespace Awr.Worker.Processors
                 range.Font.Bold = 1;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
 
+                // 5. PRINT RECEIPT
                 doc.PrintOut(Background: false);
             }
             finally
             {
-                doc.Close(false);
-                Marshal.ReleaseComObject(doc);
+                if (doc != null)
+                {
+                    doc.Close(false);
+                    Marshal.ReleaseComObject(doc);
+                }
             }
         }
-
         private string GetSubFolderForType(AwrType type)
         {
             switch (type)
