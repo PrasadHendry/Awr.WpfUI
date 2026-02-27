@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows; // For MessageBox
+using System.Windows;
 using System.Windows.Input;
 using Awr.Core.DTOs;
 using Awr.Core.Enums;
 using Awr.WpfUI.MvvmCore;
-using Awr.WpfUI.Services.Implementation; // ReportService
+using Awr.WpfUI.Services.Implementation;
 using Awr.WpfUI.ViewModels.Shared;
 
 namespace Awr.WpfUI.ViewModels
@@ -36,6 +36,9 @@ namespace Awr.WpfUI.ViewModels
         private int _totalRecords;
         public int TotalRecords { get => _totalRecords; set => SetProperty(ref _totalRecords, value); }
 
+        // Holds all filtered items locally for Exporting
+        private List<AwrItemQueueDto> _filteredItemsList = new List<AwrItemQueueDto>();
+
         // --- Status Logic ---
         public class StatusOption { public string Value { get; set; } public string Display { get; set; } }
         public ObservableCollection<StatusOption> StatusOptions { get; } = new ObservableCollection<StatusOption>();
@@ -45,8 +48,8 @@ namespace Awr.WpfUI.ViewModels
         // --- Commands ---
         public ICommand NextPageCommand { get; }
         public ICommand PrevPageCommand { get; }
-        public ICommand ExportExcelCommand { get; } // NEW
-        public ICommand ExportPdfCommand { get; }   // NEW
+        public ICommand ExportExcelCommand { get; }
+        public ICommand ExportPdfCommand { get; }
 
         public AuditTrailViewModel(string username) : base(username)
         {
@@ -68,37 +71,41 @@ namespace Awr.WpfUI.ViewModels
             }
             SelectedStatusOption = StatusOptions[0];
 
-            // Init Commands
-            NextPageCommand = new RelayCommand(async _ => { CurrentPage++; await LoadDataAsync(); }, _ => IsPagingEnabled && CurrentPage < TotalPages);
-            PrevPageCommand = new RelayCommand(async _ => { CurrentPage--; await LoadDataAsync(); }, _ => IsPagingEnabled && CurrentPage > 1);
-            
-            // NEW: Export Commands
+            // Init Commands - Paging operations now happen strictly locally
+            NextPageCommand = new RelayCommand(_ => { CurrentPage++; FilterData(); }, _ => IsPagingEnabled && CurrentPage < TotalPages);
+            PrevPageCommand = new RelayCommand(_ => { CurrentPage--; FilterData(); }, _ => IsPagingEnabled && CurrentPage > 1);
+
+            // Init Export Commands
             ExportExcelCommand = new RelayCommand(_ => ExportData("Excel"));
             ExportPdfCommand = new RelayCommand(_ => ExportData("PDF"));
         }
 
         private void ExportData(string format)
         {
-            // Use 'Items' (The currently visible/filtered list)
-            var dataToExport = Items.ToList();
-            if (!dataToExport.Any()) { MessageBox.Show("No data to export.", "Info"); return; }
+            // Export the full filtered list, not just the current page
+            var dataToExport = (_filteredItemsList != null && _filteredItemsList.Any()) ? _filteredItemsList : Items.ToList();
+
+            if (dataToExport == null || !dataToExport.Any())
+            {
+                MessageBox.Show("No data to export.", "Info");
+                return;
+            }
 
             var dialog = new Microsoft.Win32.SaveFileDialog();
             dialog.FileName = $"AWR_AuditTrail_{DateTime.Now:yyyyMMdd_HHmm}";
-            
+
             if (format == "Excel")
             {
                 dialog.Filter = "Excel Workbook|*.xlsx";
                 if (dialog.ShowDialog() == true)
                 {
                     IsBusy = true;
-                    // Run export on bg thread
                     Task.Run(() => _reportService.ExportToExcel(dataToExport, dialog.FileName, Username))
-                        .ContinueWith(t => 
-                        { 
-                            IsBusy = false; 
+                        .ContinueWith(t =>
+                        {
+                            IsBusy = false;
                             if (t.IsFaulted) MessageBox.Show("Export Failed: " + t.Exception?.InnerException?.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                            else MessageBox.Show("Export Complete.", "Success", MessageBoxButton.OK, MessageBoxImage.Information); 
+                            else MessageBox.Show("Export Complete.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                         }, TaskScheduler.FromCurrentSynchronizationContext());
                 }
             }
@@ -109,11 +116,11 @@ namespace Awr.WpfUI.ViewModels
                 {
                     IsBusy = true;
                     Task.Run(() => _reportService.ExportToPdf(dataToExport, dialog.FileName, Username))
-                         .ContinueWith(t => 
-                         { 
-                             IsBusy = false; 
+                         .ContinueWith(t =>
+                         {
+                             IsBusy = false;
                              if (t.IsFaulted) MessageBox.Show("Export Failed: " + t.Exception?.InnerException?.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                             else MessageBox.Show("Export Complete.", "Success", MessageBoxButton.OK, MessageBoxImage.Information); 
+                             else MessageBox.Show("Export Complete.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                          }, TaskScheduler.FromCurrentSynchronizationContext());
                 }
             }
@@ -121,78 +128,69 @@ namespace Awr.WpfUI.ViewModels
 
         protected override async Task<List<AwrItemQueueDto>> FetchDataInternalAsync()
         {
-            bool hasFilters = !string.IsNullOrEmpty(SearchText) || !string.IsNullOrEmpty(SearchArNo) 
-                           || (SelectedStatusOption != null && SelectedStatusOption.Value != "All") || !ShowAll;
+            // Reset to page 1 on fresh load (filters changed or refresh clicked)
+            CurrentPage = 1;
 
-            if (hasFilters)
-            {
-                IsPagingEnabled = false; CurrentPage = 1; TotalPages = 1;
-                var allData = await Service.GetAllAuditItemsAsync();
-                TotalRecords = allData.Count;
-                return allData;
-            }
-            else
-            {
-                IsPagingEnabled = true;
-                return await Task.Run(() => 
-                {
-                    int total;
-                    var list = Service.GetAuditItemsPaged(CurrentPage, PageSize, out total);
-                    TotalRecords = total;
-                    TotalPages = (int)Math.Ceiling((double)total / PageSize);
-                    if (TotalPages < 1) TotalPages = 1;
-                    return list;
-                });
-            }
+            // Always fetch ALL data to ensure TotalRecords is accurate
+            return await Service.GetAllAuditItemsAsync();
         }
 
         protected override void FilterData()
         {
             if (AllItems == null) return;
 
-            if (IsPagingEnabled)
+            var query = AllItems.AsEnumerable();
+
+            // 1. Apply Text Filter
+            if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                Items = new ObservableCollection<AwrItemQueueDto>(AllItems);
+                string lower = SearchText.ToLower();
+                query = query.Where(i =>
+                    (i.RequestNo?.ToLower().Contains(lower) ?? false) ||
+                    (i.MaterialProduct?.ToLower().Contains(lower) ?? false) ||
+                    (i.BatchNo?.ToLower().Contains(lower) ?? false) ||
+                    (i.AwrNo?.ToLower().Contains(lower) ?? false)
+                );
             }
-            else
+
+            // 2. Apply AR No Filter
+            if (!string.IsNullOrWhiteSpace(SearchArNo))
             {
-                var query = AllItems.AsEnumerable();
-
-                if (!string.IsNullOrWhiteSpace(SearchText))
+                var tokens = SearchArNo.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().ToLower());
+                query = query.Where(i =>
                 {
-                    string lower = SearchText.ToLower();
-                    query = query.Where(i => 
-                        (i.RequestNo?.ToLower().Contains(lower) ?? false) || 
-                        (i.MaterialProduct?.ToLower().Contains(lower) ?? false) || 
-                        (i.BatchNo?.ToLower().Contains(lower) ?? false) ||
-                        (i.AwrNo?.ToLower().Contains(lower) ?? false)
-                    );
-                }
-
-                if (!string.IsNullOrWhiteSpace(SearchArNo))
-                {
-                    var tokens = SearchArNo.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim().ToLower());
-                    query = query.Where(i => 
-                    {
-                        string dbAr = i.ArNo?.ToLower() ?? "";
-                        return tokens.Any(token => dbAr.Contains(token));
-                    });
-                }
-
-                if (SelectedStatusOption != null && SelectedStatusOption.Value != "All")
-                {
-                    query = query.Where(i => i.Status.ToString() == SelectedStatusOption.Value);
-                }
-
-                if (!ShowAll)
-                {
-                    query = query.Where(i => string.Equals(i.RequestedBy, Username, StringComparison.OrdinalIgnoreCase));
-                }
-
-                var filteredList = query.ToList();
-                Items = new ObservableCollection<AwrItemQueueDto>(filteredList);
-                TotalRecords = filteredList.Count;
+                    string dbAr = i.ArNo?.ToLower() ?? "";
+                    return tokens.Any(token => dbAr.Contains(token));
+                });
             }
+
+            // 3. Apply Status Filter
+            if (SelectedStatusOption != null && SelectedStatusOption.Value != "All")
+            {
+                query = query.Where(i => i.Status.ToString() == SelectedStatusOption.Value);
+            }
+
+            // 4. Apply 'My Requests Only' Filter
+            if (!ShowAll)
+            {
+                query = query.Where(i => string.Equals(i.RequestedBy, Username, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // 5. Store filtered results and update counts
+            _filteredItemsList = query.ToList();
+            TotalRecords = _filteredItemsList.Count;
+
+            // 6. Calculate Paging
+            IsPagingEnabled = true;
+            TotalPages = (int)Math.Ceiling((double)TotalRecords / PageSize);
+            if (TotalPages < 1) TotalPages = 1;
+
+            if (CurrentPage > TotalPages) CurrentPage = TotalPages;
+            if (CurrentPage < 1) CurrentPage = 1;
+
+            // 7. Apply Paging to View
+            var pagedList = _filteredItemsList.Skip((CurrentPage - 1) * PageSize).Take(PageSize).ToList();
+            Items = new ObservableCollection<AwrItemQueueDto>(pagedList);
         }
     }
 }
