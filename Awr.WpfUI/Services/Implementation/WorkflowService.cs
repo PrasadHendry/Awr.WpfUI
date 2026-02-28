@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -14,7 +13,6 @@ using Awr.Data.Repositories;
 using Awr.Worker.Configuration;
 using Awr.Worker.DTOs;
 using Awr.WpfUI.Services.Interfaces;
-using Dapper;
 
 namespace Awr.WpfUI.Services.Implementation
 {
@@ -38,52 +36,21 @@ namespace Awr.WpfUI.Services.Implementation
             return _repository.GetAuditItemsPaged(page, size, out total);
         }
 
-        // --- Sequence Generation ---
-        public string GetNextRequestNumberSequenceValue()
-        {
-            return _repository.GetNextRequestNumberSequenceValue();
-        }
+        // --- Sequence Generation REMOVED (Handled by DB now) ---
+
         public List<string> CheckIfArNumberExists(string arNo, int? excludeRequestId = null)
         {
             return _repository.CheckIfArNumberExists(arNo, excludeRequestId);
         }
 
-        // --- Submission ---
-        public async Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNoPlaceholder)
+        // --- Submission (NEW GAPLESS LOGIC) ---
+        public async Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername)
         {
             return await Task.Run(() =>
             {
-                using (var connection = new SqlConnection(_connectionString))
-                {
-                    connection.Open();
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        try
-                        {
-                            // 1. GENERATE ID (Inside Transaction)
-                            string seq = _repository.GetNextRequestNumberSequenceValue();
-                            string finalRequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-{seq}";
-
-                            // 2. Insert Header
-                            _repository.SubmitNewAwrRequest(connection, transaction, finalRequestNo, requestDto, preparedByUsername);
-
-                            // 3. Get New ID
-                            const string getIdSql = "SELECT Id FROM dbo.AwrRequest WHERE RequestNo = @RequestNo";
-                            int newRequestId = connection.QuerySingle<int>(getIdSql, new { RequestNo = finalRequestNo }, transaction: transaction);
-
-                            // 4. Insert Items
-                            _repository.InsertAwrRequestItems(connection, transaction, newRequestId, requestDto.Items);
-
-                            transaction.Commit();
-                            return finalRequestNo; // Return the ACTUAL ID generated
-                        }
-                        catch
-                        {
-                            transaction.Rollback();
-                            throw;
-                        }
-                    }
-                }
+                // The Repository and SQL Stored Procedure now handle 100% of the transactional logic.
+                // We simply ask it to execute and hand us the Gapless ID.
+                return _repository.SubmitNewAwrRequest(requestDto, preparedByUsername);
             });
         }
 

@@ -6,15 +6,14 @@ namespace Awr.WpfUI.Services.Interfaces
 {
     public interface IWorkflowService
     {
-        // --- Sequence Generation ---
-        string GetNextRequestNumberSequenceValue();
-        // NEW: Duplicate Check
+        // --- Duplicate Check ---
         List<string> CheckIfArNumberExists(string arNo, int? excludeRequestId = null);
 
         List<AwrItemQueueDto> GetAuditItemsPaged(int page, int size, out int total);
 
-        // --- Submission ---
-        Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername, string requestNo);
+        // --- Submission (NEW GAPLESS SIGNATURE) ---
+        // We no longer pass the 'requestNo' from the UI. The Database generates it and returns it.
+        Task<string> SubmitNewRequestAsync(AwrRequestSubmissionDto requestDto, string preparedByUsername);
 
         // --- Queue Retrieval ---
         Task<List<AwrItemQueueDto>> GetIssuanceQueueAsync();

@@ -123,7 +123,9 @@ namespace Awr.WpfUI.ViewModels
 
         private void ResetFormState()
         {
-            RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-####";
+            // PHARMA COMPLIANCE: Do not show a number before it is safely locked in the database.
+            // Using "TBD" prevents gaps caused by opening the form and closing it without saving.
+            RequestNo = $"AWR-{DateTime.Now:yyyyMMdd}-TBD";
             StatusMessage = "Ready for submission.";
         }
 
@@ -254,10 +256,13 @@ namespace Awr.WpfUI.ViewModels
                     }
                 };
 
-                string finalId = await _service.SubmitNewRequestAsync(dto, _username, "AUTO");
+                // CALLING NEW GAPLESS SERVICE
+                // We do NOT pass a generated ID anymore. The database generates it safely.
+                string finalId = await _service.SubmitNewRequestAsync(dto, _username);
 
                 MessageBox.Show($"Request Created Successfully!\n\nID: {finalId}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
 
+                // Update the UI with the ACTUAL ID returned by the database
                 RequestNo = finalId;
                 ClearForm();
                 ResetFormState();

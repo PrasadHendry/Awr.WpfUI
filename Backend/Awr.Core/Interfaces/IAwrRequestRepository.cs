@@ -7,15 +7,12 @@ namespace Awr.Core.Interfaces
 {
     public interface IAwrRequestRepository
     {
-        string GetNextRequestNumberSequenceValue();
         List<string> CheckIfArNumberExists(string arNo, int? excludeRequestId = null);
 
-        int SubmitNewAwrRequest(IDbConnection connection, IDbTransaction transaction, string requestNo, AwrRequestSubmissionDto requestDto, string preparedByUsername);
-
-        void InsertAwrRequestItems(IDbConnection connection, IDbTransaction transaction, int awrRequestId, List<AwrItemSubmissionDto> items);
+        // NEW: Returns the gapless string directly. No connection/transaction params needed!
+        string SubmitNewAwrRequest(AwrRequestSubmissionDto requestDto, string preparedByUsername);
 
         List<AwrItemQueueDto> GetAllAuditItems();
-
         List<AwrItemQueueDto> GetAuditItemsPaged(int pageNumber, int pageSize, out int totalRecords);
 
         List<AwrItemQueueDto> GetItemsForIssuanceQueue();
@@ -24,10 +21,7 @@ namespace Awr.Core.Interfaces
 
         void IssueItem(int itemId, decimal qtyIssued, string qaUsername);
         void ReceiveItem(int itemId, string requesterUsername);
-
-        // FIX: Added remark parameter for Void/Return justification
         void ReturnItem(int itemId, string requesterUsername, string remark);
-
         void RejectItem(int itemId, string qaUsername, string comment);
 
         AwrRequest GetFullRequestById(int requestId);
