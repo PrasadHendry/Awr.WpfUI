@@ -34,8 +34,14 @@ namespace Awr.Worker.Processors
         // ==========================================
         private void GenerateSecureDocument()
         {
+            Console.WriteLine("\n==================================================");
+            Console.WriteLine(" AWR SECURE GENERATION SEQUENCE");
+            Console.WriteLine("==================================================");
+
             string typeSubFolder = GetSubFolderForType(_record.AwrType);
             string searchDirectory = Path.Combine(WorkerConstants.SourceRoot, typeSubFolder);
+            Console.WriteLine($" > Searching for Master Template: {_record.AwrNo}...");
+
             string sourceFilePath = FindTemplateFile(searchDirectory, _record.AwrNo);
 
             if (string.IsNullOrEmpty(sourceFilePath))
@@ -62,7 +68,10 @@ namespace Awr.Worker.Processors
                 if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
                     try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
 
+                Console.WriteLine(" > Applying Layout and Resizing Images...");
                 SanitizeDocumentLayout(doc);
+
+                Console.WriteLine(" > Stamping Header & Footer...");
                 ApplyDocumentStamps(doc);
 
                 doc.Password = WorkerConstants.EncryptionPassword;
@@ -72,6 +81,8 @@ namespace Awr.Worker.Processors
                 }
 
                 doc.SaveAs2(finalFilePath);
+                Console.WriteLine($" > Successfully Generated: {finalFileName}");
+                Console.WriteLine("==================================================\n");
             }
             finally
             {
@@ -102,6 +113,11 @@ namespace Awr.Worker.Processors
                 throw new Exception("Printing Cancelled by User.");
             }
 
+            Console.WriteLine("\n==================================================");
+            Console.WriteLine(" AWR SECURE PRINTING SEQUENCE INITIATED");
+            Console.WriteLine("==================================================");
+            Console.WriteLine($" > Target Printer: {selectedPrinterName}");
+
             ForcePrinterSettings(selectedPrinterName);
 
             Word.Application wordApp = null;
@@ -118,19 +134,37 @@ namespace Awr.Worker.Processors
                 if (copies < 1) copies = 1;
 
                 // --- STEP 1: Main AWR Doc ---
+                Console.WriteLine("\n--------------------------------------------------");
+                Console.WriteLine(" [STEP 1/3]: MAIN AWR DOCUMENT");
+                Console.WriteLine("--------------------------------------------------");
+                Console.WriteLine($" > Opening Secure Document...");
+
                 doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
+
+                Console.WriteLine($" > Sending {copies} copy(s) to spooler...");
                 doc.PrintOut(Background: false, Copies: copies);
                 doc.Close(false); Marshal.ReleaseComObject(doc); doc = null;
+                Console.WriteLine(" > Spooling complete.");
 
                 Thread.Sleep(1500);
 
-                // --- STEP 2: Receipt (Original Layout) ---
+                // --- STEP 2: Receipt ---
+                Console.WriteLine("\n--------------------------------------------------");
+                Console.WriteLine(" [STEP 2/3]: ISSUANCE RECEIPT");
+                Console.WriteLine("--------------------------------------------------");
                 PrintReceiptTable(wordApp, selectedPrinterName);
 
                 Thread.Sleep(1500);
 
                 // --- STEP 3: ALCOA Checklist ---
+                Console.WriteLine("\n--------------------------------------------------");
+                Console.WriteLine(" [STEP 3/3]: QC/ALCOA CHECKLIST (AWR_ATTACHMENTS)");
+                Console.WriteLine("--------------------------------------------------");
                 PrintAlcoaChecklist(wordApp, selectedPrinterName, copies);
+
+                Console.WriteLine("\n==================================================");
+                Console.WriteLine(" PRINTING SEQUENCE COMPLETE.");
+                Console.WriteLine("==================================================\n");
             }
             finally
             {
@@ -142,8 +176,17 @@ namespace Awr.Worker.Processors
         private void PrintAlcoaChecklist(Word.Application wordApp, string printerName, int copies)
         {
             string checklistFileName = WorkerConstants.AlcoaChecklistPrefix + _record.AwrType.ToString();
+            Console.WriteLine($" > Locating Checklist for Type: {_record.AwrType}...");
+
             string sourcePath = FindTemplateFile(WorkerConstants.AwrAttachmentsLocation, checklistFileName);
-            if (string.IsNullOrEmpty(sourcePath)) return;
+            if (string.IsNullOrEmpty(sourcePath))
+            {
+                Console.WriteLine($" ! Notice: ALCOA Checklist '{checklistFileName}' not found. Skipping Step 3.");
+                return;
+            }
+
+            Console.WriteLine($" > Found: {checklistFileName}");
+            Console.WriteLine(" > Preparing secure copy...");
 
             string extension = Path.GetExtension(sourcePath);
             string tempFilePath = Path.Combine(WorkerConstants.TempLocation, Guid.NewGuid() + "_ALCOA" + extension);
@@ -159,10 +202,13 @@ namespace Awr.Worker.Processors
                 if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
                     try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
 
+                Console.WriteLine(" > Applying Layout & Security Stamps...");
                 SanitizeDocumentLayout(doc);
                 ApplyDocumentStamps(doc);
 
+                Console.WriteLine($" > Sending {copies} copy(s) to spooler...");
                 doc.PrintOut(Background: false, Copies: copies);
+                Console.WriteLine(" > Spooling complete.");
             }
             finally
             {
@@ -263,7 +309,7 @@ namespace Awr.Worker.Processors
 
         private void PrintReceiptTable(Word.Application wordApp, string printerName)
         {
-            Console.WriteLine(" > Printing Receipt...");
+            Console.WriteLine(" > Generating Receipt Table...");
             wordApp.ActivePrinter = printerName;
 
             Word.Document doc = null;
@@ -362,7 +408,9 @@ namespace Awr.Worker.Processors
                 range.Font.Bold = 1;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
 
+                Console.WriteLine(" > Sending 1 copy(s) to spooler...");
                 doc.PrintOut(Background: false);
+                Console.WriteLine(" > Spooling complete.");
             }
             finally
             {
@@ -378,6 +426,7 @@ namespace Awr.Worker.Processors
         {
             try
             {
+                Console.WriteLine(" > Enforcing Settings: One-Sided (Simplex), ISO A4... ");
                 using (LocalPrintServer printServer = new LocalPrintServer())
                 {
                     using (PrintQueue queue = printServer.GetPrintQueue(printerName))
