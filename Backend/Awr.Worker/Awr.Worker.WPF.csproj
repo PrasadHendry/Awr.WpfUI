@@ -110,6 +110,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Configuration\DocumentLayout.cs" />
     <Compile Include="Configuration\WorkerConstants.cs" />
     <Compile Include="DTOs\AwrStampingDto.cs" />
     <Compile Include="Processors\DocumentProcessor.cs" />

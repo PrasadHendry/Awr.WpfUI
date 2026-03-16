@@ -2,8 +2,9 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Printing;       // [REQUIRED] Add Reference: System.Printing
-using System.Windows.Forms;  // [REQUIRED] Add Reference: System.Windows.Forms
+using System.Printing;
+using System.Windows.Forms;
+using System.Threading;
 using Awr.Core.Enums;
 using Awr.Worker.Configuration;
 using Awr.Worker.DTOs;
@@ -15,20 +16,6 @@ namespace Awr.Worker.Processors
     {
         private readonly AwrStampingDto _record;
         private static readonly object Missing = System.Reflection.Missing.Value;
-
-        // --- SPECIFICATIONS (UPDATED) ---
-        // 1 cm = 28.35 points
-
-        // 1. Page Margins (0.8 cm)
-        private const float PageMarginPt = 22.68f;
-        private const float HeaderDistPt = 22.68f;
-        private const float FooterDistPt = 22.68f;
-
-        // 2. Image Resizing (From New Screenshot)
-        // Height: 24.98 cm -> 708.18 pt
-        // Width:  18.99 cm -> 538.37 pt
-        private const float TargetHeightPt = 708.18f;
-        private const float TargetWidthPt = 538.37f;
 
         public DocumentProcessor(AwrStampingDto record)
         {
@@ -47,21 +34,18 @@ namespace Awr.Worker.Processors
         // ==========================================
         private void GenerateSecureDocument()
         {
-            // 1. Locate Source File
             string typeSubFolder = GetSubFolderForType(_record.AwrType);
             string searchDirectory = Path.Combine(WorkerConstants.SourceRoot, typeSubFolder);
             string sourceFilePath = FindTemplateFile(searchDirectory, _record.AwrNo);
 
             if (string.IsNullOrEmpty(sourceFilePath))
-                throw new FileNotFoundException($"Template '{_record.AwrNo}' not found in: {typeSubFolder}");
+                throw new FileNotFoundException($"Template '{_record.AwrNo}' not found.");
 
-            // 2. Prepare Paths
             string extension = Path.GetExtension(sourceFilePath);
             string finalFileName = $"{_record.RequestNo}_{_record.AwrNo}{extension}";
             string finalFilePath = Path.Combine(WorkerConstants.FinalLocation, finalFileName);
             string tempFilePath = Path.Combine(WorkerConstants.TempLocation, Guid.NewGuid() + extension);
 
-            // 3. Copy to Temp
             File.Copy(sourceFilePath, tempFilePath, true);
 
             Word.Application wordApp = null;
@@ -75,79 +59,12 @@ namespace Awr.Worker.Processors
                 try { doc = wordApp.Documents.Open(tempFilePath, PasswordDocument: WorkerConstants.EncryptionPassword); }
                 catch { doc = wordApp.Documents.Open(tempFilePath); }
 
-                // 4. UNPROTECT
                 if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
-                {
                     try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
-                }
 
-                // 5. RESIZE & CENTER (Uses updated dimensions 24.98cm x 18.99cm)
                 SanitizeDocumentLayout(doc);
+                ApplyDocumentStamps(doc);
 
-                // 6. APPLY STAMPS
-                foreach (Word.Section section in doc.Sections)
-                {
-                    // =========================================================
-                    // HEADER: Dark Blue Box "Stamp" (Fully Right Aligned)
-                    // =========================================================
-                    var headerRange = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                    headerRange.Delete(); // Clear existing
-
-                    // Create 1x1 Table for the Box
-                    Word.Table stampTable = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary]
-                        .Range.Tables.Add(headerRange, 1, 1);
-
-                    // FORCE RIGHT ALIGNMENT
-                    stampTable.Rows.Alignment = Word.WdRowAlignment.wdAlignRowRight;
-
-                    // Reset Indents to ensure it touches the margin
-                    stampTable.Range.ParagraphFormat.RightIndent = 0;
-                    stampTable.Range.ParagraphFormat.LeftIndent = 0;
-
-                    // Fit the box tightly to text
-                    stampTable.AutoFitBehavior(Word.WdAutoFitBehavior.wdAutoFitContent);
-
-                    // Box Border Styling
-                    stampTable.Borders.Enable = 1;
-                    stampTable.Borders.OutsideColor = Word.WdColor.wdColorDarkBlue;
-                    stampTable.Borders.OutsideLineWidth = Word.WdLineWidth.wdLineWidth150pt; // Thick
-                    stampTable.Borders.OutsideLineStyle = Word.WdLineStyle.wdLineStyleSingle;
-
-                    // Text Content & Styling
-                    stampTable.Range.Text = _record.GetHeaderText();
-                    stampTable.Range.Font.Name = "Arial";
-                    stampTable.Range.Font.Size = 7; // Size 7
-                    stampTable.Range.Font.Bold = 1;
-                    stampTable.Range.Font.Color = Word.WdColor.wdColorDarkBlue;
-
-                    // Center text *inside* the box
-                    stampTable.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
-                    stampTable.Range.ParagraphFormat.SpaceAfter = 0;
-
-                    // =========================================================
-                    // FOOTER: Digital Style with Top Line (Right Aligned)
-                    // =========================================================
-                    var footerRange = section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
-                    footerRange.Text = _record.GetFooterText();
-
-                    // Text Styling
-                    footerRange.Font.Name = "Consolas";
-                    footerRange.Font.Size = 7; // Size 7
-                    footerRange.Font.Color = Word.WdColor.wdColorBlack;
-                    footerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight; // Right Align
-
-                    // Gray Separator Line (Top)
-                    footerRange.Borders[Word.WdBorderType.wdBorderTop].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
-                    footerRange.Borders[Word.WdBorderType.wdBorderTop].LineWidth = Word.WdLineWidth.wdLineWidth050pt;
-                    footerRange.Borders[Word.WdBorderType.wdBorderTop].Color = Word.WdColor.wdColorGray50;
-
-                    // Clear other borders
-                    footerRange.Borders[Word.WdBorderType.wdBorderBottom].LineStyle = Word.WdLineStyle.wdLineStyleNone;
-                    footerRange.Borders[Word.WdBorderType.wdBorderLeft].LineStyle = Word.WdLineStyle.wdLineStyleNone;
-                    footerRange.Borders[Word.WdBorderType.wdBorderRight].LineStyle = Word.WdLineStyle.wdLineStyleNone;
-                }
-
-                // 7. PROTECT & SAVE
                 doc.Password = WorkerConstants.EncryptionPassword;
                 if (doc.ProtectionType == Word.WdProtectionType.wdNoProtection)
                 {
@@ -155,7 +72,6 @@ namespace Awr.Worker.Processors
                 }
 
                 doc.SaveAs2(finalFilePath);
-                Console.WriteLine($" > Generated: {finalFileName}");
             }
             finally
             {
@@ -165,71 +81,8 @@ namespace Awr.Worker.Processors
             }
         }
 
-        // --- RESIZING LOGIC ---
-        private void SanitizeDocumentLayout(Word.Document doc)
-        {
-            Console.WriteLine(" > Adjusting Layout...");
-            foreach (Word.Section section in doc.Sections)
-            {
-                // Set Margins & Distances (From Screenshot)
-                section.PageSetup.TopMargin = PageMarginPt;
-                section.PageSetup.BottomMargin = PageMarginPt;
-                section.PageSetup.LeftMargin = PageMarginPt;
-                section.PageSetup.RightMargin = PageMarginPt;
-                section.PageSetup.HeaderDistance = HeaderDistPt;
-                section.PageSetup.FooterDistance = FooterDistPt;
-
-                // Process Body
-                ResizeShapesInRange(section.Range);
-
-                // Process Headers/Footers (Deep Search)
-                foreach (Word.HeaderFooter hf in section.Headers) ResizeShapesInRange(hf.Range);
-                foreach (Word.HeaderFooter hf in section.Footers) ResizeShapesInRange(hf.Range);
-            }
-        }
-
-        private void ResizeShapesInRange(Word.Range range)
-        {
-            // A. Inline Shapes
-            foreach (Word.InlineShape shape in range.InlineShapes)
-            {
-                // Force Unlock & Size
-                shape.LockAspectRatio = Microsoft.Office.Core.MsoTriState.msoFalse;
-                shape.Height = TargetHeightPt;
-                shape.Width = TargetWidthPt;
-                shape.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
-            }
-
-            // B. Floating Shapes
-            for (int i = range.ShapeRange.Count; i >= 1; i--)
-            {
-                var shape = range.ShapeRange[i];
-                try
-                {
-                    shape.LockAspectRatio = Microsoft.Office.Core.MsoTriState.msoFalse;
-                    shape.Height = TargetHeightPt;
-                    shape.Width = TargetWidthPt;
-
-                    // Absolute Center
-                    shape.RelativeVerticalPosition = Word.WdRelativeVerticalPosition.wdRelativeVerticalPositionPage;
-                    shape.Top = (float)Word.WdShapePosition.wdShapeCenter;
-                    shape.RelativeHorizontalPosition = Word.WdRelativeHorizontalPosition.wdRelativeHorizontalPositionPage;
-                    shape.Left = (float)Word.WdShapePosition.wdShapeCenter;
-
-                    shape.ZOrder(Microsoft.Office.Core.MsoZOrderCmd.msoSendBehindText);
-                }
-                catch { }
-            }
-
-            // C. Content Controls (Deep Search)
-            foreach (Word.ContentControl cc in range.ContentControls)
-            {
-                ResizeShapesInRange(cc.Range);
-            }
-        }
-
         // ==========================================
-        // 2. QC PRINTING (OFFICE 2013-2024 COMPATIBLE)
+        // 2. QC PRINTING (3-STEP SEQUENCE)
         // ==========================================
         private void PrintSecureDocument()
         {
@@ -238,12 +91,8 @@ namespace Awr.Worker.Processors
 
             if (string.IsNullOrEmpty(filePath)) throw new FileNotFoundException($"File not found: {fileNameBase}");
 
-            // --- STEP A: Printer Selection ---
             string selectedPrinterName = null;
             PrintDialog printDialog = new PrintDialog();
-            printDialog.AllowSomePages = false;
-            printDialog.AllowSelection = false;
-
             if (printDialog.ShowDialog() == DialogResult.OK)
             {
                 selectedPrinterName = printDialog.PrinterSettings.PrinterName;
@@ -253,10 +102,8 @@ namespace Awr.Worker.Processors
                 throw new Exception("Printing Cancelled by User.");
             }
 
-            // --- STEP B: Force Settings (Simplex/A4) ---
             ForcePrinterSettings(selectedPrinterName);
 
-            // --- STEP C: Word Automation ---
             Word.Application wordApp = null;
             Word.Document doc = null;
 
@@ -264,45 +111,27 @@ namespace Awr.Worker.Processors
             {
                 wordApp = new Word.Application { Visible = false, DisplayAlerts = Word.WdAlertLevel.wdAlertsNone };
                 Program.ActiveWordApps.Add(wordApp);
-
-                // FUTURE PROOFING: Disable "Reading Mode" and "Start Screen"
                 wordApp.Options.AllowReadingMode = false;
                 wordApp.ActivePrinter = selectedPrinterName;
-
-                Console.WriteLine($" > Printing Main Doc ({_record.QtyIssued:0} Copies) to {selectedPrinterName}...");
-
-                // 1. OPEN MAIN DOC
-                doc = wordApp.Documents.Open(filePath,
-                    PasswordDocument: WorkerConstants.EncryptionPassword,
-                    ReadOnly: true,
-                    AddToRecentFiles: false);
-
-                // OFFICE 2013-2024 FIX: Force the document into Print View context
-                try
-                {
-                    if (wordApp.ActiveWindow != null)
-                        wordApp.ActiveWindow.View.Type = Word.WdViewType.wdPrintView;
-                }
-                catch { /* Ignore if window not ready */ }
 
                 int copies = (int)_record.QtyIssued;
                 if (copies < 1) copies = 1;
 
-                // 2. PRINT MAIN DOC
+                // --- STEP 1: Main AWR Doc ---
+                doc = wordApp.Documents.Open(filePath, PasswordDocument: WorkerConstants.EncryptionPassword, ReadOnly: true);
                 doc.PrintOut(Background: false, Copies: copies);
+                doc.Close(false); Marshal.ReleaseComObject(doc); doc = null;
 
-                // 3. CLEAN UP MAIN DOC (Crucial for resetting Word state)
-                doc.Close(false);
-                Marshal.ReleaseComObject(doc);
-                doc = null;
+                Thread.Sleep(1500);
 
-                // Brief pause to allow Word engine to clear the file lock
-                System.Threading.Thread.Sleep(500);
-
-                // 4. PRINT RECEIPT
+                // --- STEP 2: Receipt (Original Layout) ---
                 PrintReceiptTable(wordApp, selectedPrinterName);
-            }
 
+                Thread.Sleep(1500);
+
+                // --- STEP 3: ALCOA Checklist ---
+                PrintAlcoaChecklist(wordApp, selectedPrinterName, copies);
+            }
             finally
             {
                 if (doc != null) { try { doc.Close(false); } catch { } Marshal.ReleaseComObject(doc); }
@@ -310,69 +139,144 @@ namespace Awr.Worker.Processors
             }
         }
 
-        /// <summary>
-        /// Modifies the Print Ticket of the selected printer to enforce A4 and One-Sided printing.
-        /// </summary>
-        private void ForcePrinterSettings(string printerName)
+        private void PrintAlcoaChecklist(Word.Application wordApp, string printerName, int copies)
         {
+            string checklistFileName = WorkerConstants.AlcoaChecklistPrefix + _record.AwrType.ToString();
+            string sourcePath = FindTemplateFile(WorkerConstants.AwrAttachmentsLocation, checklistFileName);
+            if (string.IsNullOrEmpty(sourcePath)) return;
+
+            string extension = Path.GetExtension(sourcePath);
+            string tempFilePath = Path.Combine(WorkerConstants.TempLocation, Guid.NewGuid() + "_ALCOA" + extension);
+            File.Copy(sourcePath, tempFilePath, true);
+
+            Word.Document doc = null;
             try
             {
-                using (LocalPrintServer printServer = new LocalPrintServer())
+                wordApp.ActivePrinter = printerName;
+                try { doc = wordApp.Documents.Open(tempFilePath, PasswordDocument: WorkerConstants.EncryptionPassword); }
+                catch { doc = wordApp.Documents.Open(tempFilePath); }
+
+                if (doc.ProtectionType != Word.WdProtectionType.wdNoProtection)
+                    try { doc.Unprotect(WorkerConstants.RestrictEditPassword); } catch { }
+
+                SanitizeDocumentLayout(doc);
+                ApplyDocumentStamps(doc);
+
+                doc.PrintOut(Background: false, Copies: copies);
+            }
+            finally
+            {
+                if (doc != null) { try { doc.Close(false); } catch { } Marshal.ReleaseComObject(doc); }
+                if (File.Exists(tempFilePath)) try { File.Delete(tempFilePath); } catch { }
+            }
+        }
+
+        private void ApplyDocumentStamps(Word.Document doc)
+        {
+            foreach (Word.Section section in doc.Sections)
+            {
+                // Header Stamp
+                var headerRange = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
+                headerRange.Delete();
+                Word.Table stampTable = section.Headers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range.Tables.Add(headerRange, 1, 1);
+                stampTable.Rows.Alignment = Word.WdRowAlignment.wdAlignRowRight;
+                stampTable.AutoFitBehavior(Word.WdAutoFitBehavior.wdAutoFitContent);
+                stampTable.Borders.Enable = 1;
+                stampTable.Borders.OutsideColor = Word.WdColor.wdColorDarkBlue;
+                stampTable.Borders.OutsideLineWidth = Word.WdLineWidth.wdLineWidth150pt;
+                stampTable.Range.Text = _record.GetHeaderText();
+                stampTable.Range.Font.Name = "Arial";
+                stampTable.Range.Font.Size = 7;
+                stampTable.Range.Font.Bold = 1;
+                stampTable.Range.Font.Color = Word.WdColor.wdColorDarkBlue;
+                stampTable.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
+
+                // Footer Stamp
+                var footerRange = section.Footers[Word.WdHeaderFooterIndex.wdHeaderFooterPrimary].Range;
+                footerRange.Text = _record.GetFooterText();
+                footerRange.Font.Name = "Consolas";
+                footerRange.Font.Size = 7;
+                footerRange.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
+                footerRange.Borders[Word.WdBorderType.wdBorderTop].LineStyle = Word.WdLineStyle.wdLineStyleSingle;
+                footerRange.Borders[Word.WdBorderType.wdBorderTop].Color = Word.WdColor.wdColorGray50;
+            }
+        }
+
+        private void SanitizeDocumentLayout(Word.Document doc)
+        {
+            foreach (Word.Section section in doc.Sections)
+            {
+                section.PageSetup.TopMargin = DocumentLayout.PageMarginPt;
+                section.PageSetup.BottomMargin = DocumentLayout.PageMarginPt;
+                section.PageSetup.LeftMargin = DocumentLayout.PageMarginPt;
+                section.PageSetup.RightMargin = DocumentLayout.PageMarginPt;
+                section.PageSetup.HeaderDistance = DocumentLayout.HeaderDistPt;
+                section.PageSetup.FooterDistance = DocumentLayout.FooterDistPt;
+
+                ResizeShapesInRange(section.Range);
+                foreach (Word.HeaderFooter hf in section.Headers) ResizeShapesInRange(hf.Range);
+                foreach (Word.HeaderFooter hf in section.Footers) ResizeShapesInRange(hf.Range);
+            }
+
+            // --- FIX FOR BLANK PAGE ---
+            // Shrink trailing paragraph marks to 1pt so they don't flow to a new page
+            foreach (Word.Paragraph para in doc.Paragraphs)
+            {
+                string pText = para.Range.Text;
+                if (pText == "\r" || pText == "\v" || string.IsNullOrWhiteSpace(pText))
                 {
-                    using (PrintQueue queue = printServer.GetPrintQueue(printerName))
-                    {
-                        // 1. Get the User's current Ticket
-                        PrintTicket userTicket = queue.UserPrintTicket;
-
-                        // 2. Force One Sided (Simplex)
-                        if (userTicket.Duplexing.HasValue)
-                        {
-                            userTicket.Duplexing = Duplexing.OneSided;
-                            Console.WriteLine(" > Enforced: One-Sided Print");
-                        }
-
-                        // 3. Force A4
-                        if (userTicket.PageMediaSize != null)
-                        {
-                            userTicket.PageMediaSize = new PageMediaSize(PageMediaSizeName.ISOA4);
-                            Console.WriteLine(" > Enforced: A4 Paper Size");
-                        }
-
-                        // 4. Commit changes to the queue for this session
-                        queue.UserPrintTicket = userTicket;
-                        queue.Commit();
-                    }
+                    para.Range.Font.Size = 1;
+                    para.Format.LineSpacingRule = Word.WdLineSpacing.wdLineSpaceExactly;
+                    para.Format.LineSpacing = 1f;
+                    para.Format.SpaceAfter = 0;
+                    para.Format.SpaceBefore = 0;
                 }
             }
-            catch (Exception ex)
+        }
+
+        private void ResizeShapesInRange(Word.Range range)
+        {
+            foreach (Word.InlineShape shape in range.InlineShapes)
             {
-                Console.WriteLine($" ! Warning: Could not enforce printer settings (Driver restrictions?): {ex.Message}");
-                // We do not throw here to allow printing to continue even if enforcing fails.
+                shape.LockAspectRatio = Microsoft.Office.Core.MsoTriState.msoTrue;
+                shape.Width = DocumentLayout.TargetWidthPt;
+                if (shape.Height > DocumentLayout.TargetHeightPt) shape.Height = DocumentLayout.TargetHeightPt;
+                shape.Range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphCenter;
+            }
+
+            for (int i = range.ShapeRange.Count; i >= 1; i--)
+            {
+                var shape = range.ShapeRange[i];
+                try
+                {
+                    shape.LockAspectRatio = Microsoft.Office.Core.MsoTriState.msoTrue;
+                    shape.Width = DocumentLayout.TargetWidthPt;
+                    if (shape.Height > DocumentLayout.TargetHeightPt) shape.Height = DocumentLayout.TargetHeightPt;
+                    shape.RelativeVerticalPosition = Word.WdRelativeVerticalPosition.wdRelativeVerticalPositionPage;
+                    shape.Top = (float)Word.WdShapePosition.wdShapeCenter;
+                    shape.RelativeHorizontalPosition = Word.WdRelativeHorizontalPosition.wdRelativeHorizontalPositionPage;
+                    shape.Left = (float)Word.WdShapePosition.wdShapeCenter;
+                }
+                catch { }
             }
         }
 
         private void PrintReceiptTable(Word.Application wordApp, string printerName)
         {
             Console.WriteLine(" > Printing Receipt...");
-            
-            // Ensure Word knows which printer to use for the new document
             wordApp.ActivePrinter = printerName;
-            
+
             Word.Document doc = null;
             try
             {
-                // OFFICE 2013 FIX: Standard 'Add' works now because Reading Mode is disabled
                 doc = wordApp.Documents.Add();
 
-                // Force Print View on the Receipt doc as well
                 try
                 {
-                    if (wordApp.ActiveWindow != null)
-                        wordApp.ActiveWindow.View.Type = Word.WdViewType.wdPrintView;
+                    if (wordApp.ActiveWindow != null) wordApp.ActiveWindow.View.Type = Word.WdViewType.wdPrintView;
                 }
                 catch { }
 
-                // Narrow Margins for Receipt (0.5 inch / 36 pt)
                 doc.PageSetup.TopMargin = 36;
                 doc.PageSetup.BottomMargin = 36;
                 doc.PageSetup.LeftMargin = 36;
@@ -380,7 +284,6 @@ namespace Awr.Worker.Processors
 
                 var range = doc.Range();
 
-                // --- RECEIPT HEADER ---
                 range.Text = "SIGMA LABORATORIES PRIVATE LIMITED\n";
                 range.Font.Name = "Calibri";
                 range.Font.Size = 12;
@@ -408,13 +311,12 @@ namespace Awr.Worker.Processors
                 range.Font.Underline = Word.WdUnderline.wdUnderlineNone;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphLeft;
 
-                // --- RECEIPT TABLE (10 Rows, 2 Columns) ---
                 Word.Table table = doc.Tables.Add(range, 10, 2);
                 table.Borders.Enable = 1;
                 table.Borders.OutsideLineWidth = Word.WdLineWidth.wdLineWidth150pt;
                 table.PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
                 table.PreferredWidth = 100;
-                
+
                 table.Columns[1].PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
                 table.Columns[1].PreferredWidth = 35;
                 table.Columns[2].PreferredWidthType = Word.WdPreferredWidthType.wdPreferredWidthPercent;
@@ -425,7 +327,6 @@ namespace Awr.Worker.Processors
                 table.Range.ParagraphFormat.SpaceAfter = 3;
                 table.Rows.WrapAroundText = 0;
 
-                // Local helper to fill rows
                 void AddRow(int r, string k, string v)
                 {
                     table.Cell(r, 1).Range.Text = k;
@@ -445,7 +346,6 @@ namespace Awr.Worker.Processors
                 AddRow(9, "Received By (QC):", _record.PrintedByUsername);
                 AddRow(10, "Timestamp (Print):", _record.FinalActionDateText);
 
-                // --- FOOTER ACKNOWLEDGMENT ---
                 range = doc.Range();
                 range.Collapse(Word.WdCollapseDirection.wdCollapseEnd);
                 range.InsertParagraphAfter();
@@ -462,7 +362,6 @@ namespace Awr.Worker.Processors
                 range.Font.Bold = 1;
                 range.ParagraphFormat.Alignment = Word.WdParagraphAlignment.wdAlignParagraphRight;
 
-                // 5. PRINT RECEIPT
                 doc.PrintOut(Background: false);
             }
             finally
@@ -474,6 +373,26 @@ namespace Awr.Worker.Processors
                 }
             }
         }
+
+        private void ForcePrinterSettings(string printerName)
+        {
+            try
+            {
+                using (LocalPrintServer printServer = new LocalPrintServer())
+                {
+                    using (PrintQueue queue = printServer.GetPrintQueue(printerName))
+                    {
+                        PrintTicket userTicket = queue.UserPrintTicket;
+                        if (userTicket.Duplexing.HasValue) userTicket.Duplexing = Duplexing.OneSided;
+                        if (userTicket.PageMediaSize != null) userTicket.PageMediaSize = new PageMediaSize(PageMediaSizeName.ISOA4);
+                        queue.UserPrintTicket = userTicket;
+                        queue.Commit();
+                    }
+                }
+            }
+            catch { }
+        }
+
         private string GetSubFolderForType(AwrType type)
         {
             switch (type)
@@ -495,8 +414,7 @@ namespace Awr.Worker.Processors
             string pathDocx = Path.Combine(directory, fileNameNoExt + ".docx");
             if (File.Exists(pathDocx)) return pathDocx;
             string pathDoc = Path.Combine(directory, fileNameNoExt + ".doc");
-            if (File.Exists(pathDoc)) return pathDoc;
-            return null;
+            return File.Exists(pathDoc) ? pathDoc : null;
         }
     }
 }

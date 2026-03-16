@@ -15,6 +15,11 @@
         //public const string FinalLocation = @"\\192.15.15.100\AWR Request\FinalIssuedDocs"; // Where QA generated docs live OG
         public const string FinalLocation = @"\\192.15.15.100\AWR Request\FinalIssuedDocs\TEST"; // TESTING LOCATION
 
+        // --- NEW: Attachments Location (ALCOA Checklists) ---
+        //public const string AwrAttachmentsLocation = @"\\FILE-SERVER\AWR Request\FinalIssuedDocs\AWR_ATTACHMENTS"; //Where attachments (ALCOA Checklists) live OG
+        public const string AwrAttachmentsLocation = @"\\FILE-SERVER\AWR Request\FinalIssuedDocs\TEST\AWR_ATTACHMENTS"; // // TESTING LOCATION
+        public const string AlcoaChecklistPrefix = "QC_ALCOA_CHECKLIST-";
+
         // Security
         public const string EncryptionPassword = "QA";
         public const string RestrictEditPassword = "logitech";
